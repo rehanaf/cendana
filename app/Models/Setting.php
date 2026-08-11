@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Setting extends Model
+{
+    protected $fillable = ['key', 'value'];
+
+    public static function get(string $key, mixed $default = null): mixed
+    {
+        return static::query()->where('key', $key)->value('value') ?? $default;
+    }
+
+    public static function set(string $key, mixed $value): void
+    {
+        static::query()->updateOrCreate(['key' => $key], ['value' => (string) $value]);
+    }
+
+    public static function getWalletId(string $settingKey): ?int
+    {
+        $walletId = (int) static::get($settingKey);
+
+        return $walletId
+            ? $walletId
+            : Wallet::where('is_active', true)->orderBy('name')->first()?->id;
+    }
+}
