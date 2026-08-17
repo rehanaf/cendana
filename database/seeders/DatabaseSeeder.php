@@ -36,6 +36,8 @@ class DatabaseSeeder extends Seeder
             'retail_customers',
             'internet_packages',
             'vendors',
+            'trouble_tickets',
+            'inventory_items',
         ];
 
         $sopPermissions = [

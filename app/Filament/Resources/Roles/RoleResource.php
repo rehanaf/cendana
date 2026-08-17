@@ -9,10 +9,8 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -58,22 +56,10 @@ class RoleResource extends Resource
     {
         return $schema
             ->components([
-                Section::make('Informasi Jabatan')
-                    ->columns(1)
-                    ->schema([
-                        TextInput::make('name')
-                            ->label('Nama Jabatan')
-                            ->required()
-                            ->maxLength(255),
-                    ]),
-                Section::make('Izin')
-                    ->description('Pilih izin yang dimiliki jabatan ini')
-                    ->schema([
-                        CheckboxList::make('permissions')
-                            ->label('')
-                            ->relationship('permissions', 'name')
-                            ->columns(2),
-                    ]),
+                TextInput::make('name')
+                    ->label('Nama Jabatan')
+                    ->required()
+                    ->maxLength(255),
             ]);
     }
 
@@ -85,10 +71,6 @@ class RoleResource extends Resource
                 TextColumn::make('name')
                     ->label('Nama Jabatan')
                     ->searchable(),
-                TextColumn::make('permissions.name')
-                    ->label('Izin')
-                    ->badge()
-                    ->separator(', '),
             ])
             ->filters([
                 //

@@ -36,7 +36,7 @@ class LaporanPenjualan extends Page implements HasTable
 
     protected static ?int $navigationSort = 2;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Laporan';
+    protected static string|\UnitEnum|null $navigationGroup = 'Laporan Keuangan';
 
     public static function getNavigationIcon(): string | BackedEnum | null
     {

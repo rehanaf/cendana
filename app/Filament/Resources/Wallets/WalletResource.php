@@ -106,7 +106,7 @@ class WalletResource extends Resource
                     ->sortable(),
                 TextColumn::make('balance')
                     ->label('Saldo')
-                    ->money('IDR')
+                    ->money('IDR', decimalPlaces: 0)
                     ->sortable()
                     ->color(fn (float $state): string => $state < 0 ? 'danger' : 'success'),
                 TextColumn::make('description')

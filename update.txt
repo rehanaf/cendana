@@ -1,0 +1,38 @@
+Masih di Finance:
+Laporan:
+yg sebelumnya masukkan satukan di satu Sidebar Laporan tanpa ada sub menu apa2, dan didalamnya ada halaman ada list Laporan2 laporan lama nama judulnya Laporan Keuangan, kemudian tambah laporan2 ini semua ada harian/bulanan/periode seperti Laporan Penjualan saat ini, tergantung relevansi
+Sekilas Bisnis
+- Neraca
+- Buku Besar
+- Laba Rugi
+- Arus Kas
+Penjualan
+- Daftar Penjualan
+- Penjualan Per Pelanggan
+- Piutang Pelanggan
+- Usia Piutang
+- Penjualan Per Produk
+Pembelian
+- Daftar Pembelian
+- Pembelian Per Supplier
+- Utang Supplier
+- Daftar Pengeluaran
+- Usia Utang
+- Pembelian Per Produk
+Produk
+- Ringkasan Persediaan Barang
+- Detail Persediaan Barang
+Aset
+- Ringkasan Aset Tetap
+- Detail Aset Tetap
+Bank
+- Ringkasan Rekonsiliasi Bank
+- Mutasi Rekening Koran
+Pajak
+- Pajak Pemotongan
+- Pajak Penjualan
+
+Fitur baru:
+Tiket Gangguan (Pelanggan Retail): Tanggal, id customer retail, Keterangan, id user penanggung jawab bisa banyak (Pic), waktu mulai, waktu normal kembali, kategori gangguan (Ringan, Sedang, Berat). Langkah Penanganan gangguan, status tiket
+Persediaan Barang: Nama, Harga, Stok minimum, Stok, Status (in stock, to be order), Notes
+

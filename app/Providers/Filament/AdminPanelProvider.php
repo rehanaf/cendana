@@ -27,6 +27,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->viteTheme('resources/css/filament/admin/theme.css')
             ->login()
             ->colors([
                 'primary' => Color::Blue,
@@ -45,6 +46,8 @@ class AdminPanelProvider extends PanelProvider
             ->navigationGroups([
                 \Filament\Navigation\NavigationGroup::make()
                     ->label('Laporan'),
+                \Filament\Navigation\NavigationGroup::make()
+                    ->label('Laporan Keuangan'),
                 \Filament\Navigation\NavigationGroup::make()
                     ->label('Kas'),
                 \Filament\Navigation\NavigationGroup::make()

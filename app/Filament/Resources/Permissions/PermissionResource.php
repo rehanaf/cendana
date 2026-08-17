@@ -22,6 +22,8 @@ class PermissionResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function getNavigationIcon(): string | BackedEnum | null
     {
         return Heroicon::OutlinedKey;
