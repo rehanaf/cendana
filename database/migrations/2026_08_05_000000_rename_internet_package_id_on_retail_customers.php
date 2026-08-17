@@ -9,13 +9,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $db = DB::connection()->getDatabaseName();
+        $driver = DB::connection()->getDriverName();
+        $hasForeign = false;
 
-        $hasForeign = DB::table('information_schema.TABLE_CONSTRAINTS')
-            ->where('TABLE_SCHEMA', $db)
-            ->where('TABLE_NAME', 'retail_customers')
-            ->where('CONSTRAINT_NAME', 'pelanggan_retails_paket_internet_id_foreign')
-            ->exists();
+        if ($driver === 'mysql') {
+            $db = DB::connection()->getDatabaseName();
+
+            $hasForeign = DB::table('information_schema.TABLE_CONSTRAINTS')
+                ->where('TABLE_SCHEMA', $db)
+                ->where('TABLE_NAME', 'retail_customers')
+                ->where('CONSTRAINT_NAME', 'pelanggan_retails_paket_internet_id_foreign')
+                ->exists();
+        }
 
         if ($hasForeign) {
             Schema::table('retail_customers', function (Blueprint $table) {
@@ -23,24 +28,37 @@ return new class extends Migration
             });
         }
 
-        Schema::table('retail_customers', function (Blueprint $table) {
-            $table->renameColumn('paket_internet_id', 'internet_package_id');
-        });
+        if (Schema::hasColumn('retail_customers', 'paket_internet_id') && ! Schema::hasColumn('retail_customers', 'internet_package_id')) {
+            Schema::table('retail_customers', function (Blueprint $table) {
+                $table->renameColumn('paket_internet_id', 'internet_package_id');
+            });
+        }
 
-        Schema::table('retail_customers', function (Blueprint $table) {
-            $table->foreign('internet_package_id')->references('id')->on('internet_packages')->nullOnDelete();
-        });
+        if (Schema::hasColumn('retail_customers', 'internet_package_id')) {
+            try {
+                Schema::table('retail_customers', function (Blueprint $table) {
+                    $table->foreign('internet_package_id')->references('id')->on('internet_packages')->nullOnDelete();
+                });
+            } catch (\Throwable $e) {
+                // Ignore if foreign key already exists
+            }
+        }
     }
 
     public function down(): void
     {
-        $db = DB::connection()->getDatabaseName();
+        $driver = DB::connection()->getDriverName();
+        $hasForeign = false;
 
-        $hasForeign = DB::table('information_schema.TABLE_CONSTRAINTS')
-            ->where('TABLE_SCHEMA', $db)
-            ->where('TABLE_NAME', 'retail_customers')
-            ->where('CONSTRAINT_NAME', 'retail_customers_internet_package_id_foreign')
-            ->exists();
+        if ($driver === 'mysql') {
+            $db = DB::connection()->getDatabaseName();
+
+            $hasForeign = DB::table('information_schema.TABLE_CONSTRAINTS')
+                ->where('TABLE_SCHEMA', $db)
+                ->where('TABLE_NAME', 'retail_customers')
+                ->where('CONSTRAINT_NAME', 'retail_customers_internet_package_id_foreign')
+                ->exists();
+        }
 
         if ($hasForeign) {
             Schema::table('retail_customers', function (Blueprint $table) {
@@ -48,12 +66,20 @@ return new class extends Migration
             });
         }
 
-        Schema::table('retail_customers', function (Blueprint $table) {
-            $table->renameColumn('internet_package_id', 'paket_internet_id');
-        });
+        if (Schema::hasColumn('retail_customers', 'internet_package_id') && ! Schema::hasColumn('retail_customers', 'paket_internet_id')) {
+            Schema::table('retail_customers', function (Blueprint $table) {
+                $table->renameColumn('internet_package_id', 'paket_internet_id');
+            });
+        }
 
-        Schema::table('retail_customers', function (Blueprint $table) {
-            $table->foreign('paket_internet_id')->references('id')->on('internet_packages')->nullOnDelete();
-        });
+        if (Schema::hasColumn('retail_customers', 'paket_internet_id')) {
+            try {
+                Schema::table('retail_customers', function (Blueprint $table) {
+                    $table->foreign('paket_internet_id')->references('id')->on('internet_packages')->nullOnDelete();
+                });
+            } catch (\Throwable $e) {
+                // Ignore if foreign key already exists
+            }
+        }
     }
 };

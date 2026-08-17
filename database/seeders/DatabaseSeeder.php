@@ -38,6 +38,15 @@ class DatabaseSeeder extends Seeder
             'vendors',
         ];
 
+        $sopPermissions = [
+            'view_sops',
+            'create_sops',
+            'edit_sops',
+            'delete_sops',
+        ];
+
+        $permissions = array_merge($permissions, $sopPermissions);
+
         $businessActions = ['view', 'create', 'edit', 'delete'];
         foreach ($businessEntities as $entity) {
             foreach ($businessActions as $action) {
@@ -89,6 +98,13 @@ class DatabaseSeeder extends Seeder
 
         foreach (['General Manager', 'HR Manager', 'Sales', 'Technician'] as $roleName) {
             $roles[$roleName]->permissions()->attach($businessFull);
+        }
+
+        $sopView = Permission::where('name', 'view_sops')->first();
+        foreach (['General Manager', 'HR Manager', 'Finance', 'Sales', 'Technician'] as $roleName) {
+            if ($sopView) {
+                $roles[$roleName]->permissions()->attach($sopView->id);
+            }
         }
 
         $admin = User::factory()->admin()->create([

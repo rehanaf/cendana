@@ -54,6 +54,8 @@ class AdminPanelProvider extends PanelProvider
                 \Filament\Navigation\NavigationGroup::make()
                     ->label('Pembelian'),
                 \Filament\Navigation\NavigationGroup::make()
+                    ->label('SOP'),
+                \Filament\Navigation\NavigationGroup::make()
                     ->label('Pengaturan'),
             ])
             ->middleware([

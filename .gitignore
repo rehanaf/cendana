@@ -18,6 +18,9 @@
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
+/storage/framework/views
+*.zip
+/tmp_analyze.php
 /storage/*.key
 /storage/pail
 /vendor
