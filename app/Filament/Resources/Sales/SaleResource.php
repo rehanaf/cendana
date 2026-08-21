@@ -42,7 +42,7 @@ class SaleResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Penjualan';
 
-    public static function getNavigationIcon(): string | BackedEnum | null
+    public static function getNavigationIcon(): string|BackedEnum|null
     {
         return Heroicon::OutlinedShoppingCart;
     }
@@ -75,7 +75,7 @@ class SaleResource extends Resource
                 Select::make('customer_id')
                     ->label('Pelanggan')
                     ->relationship('customer', 'name')
-                    ->getOptionLabelFromRecordUsing(fn (PelangganCorporate $record): string => $record->customer_code . ' - ' . $record->name)
+                    ->getOptionLabelFromRecordUsing(fn (PelangganCorporate $record): string => $record->customer_code.' - '.$record->name)
                     ->searchable()
                     ->preload()
                     ->required(),
@@ -101,8 +101,7 @@ class SaleResource extends Resource
                 Select::make('wallet_id')
                     ->label('Dompet Pembayaran')
                     ->helperText('Dompet yang digunakan untuk transaksi lunas')
-                    ->options(fn (): array =>
-                        Wallet::where('is_active', true)->orderBy('name')->pluck('name', 'id')->toArray()
+                    ->options(fn (): array => Wallet::where('is_active', true)->orderBy('name')->pluck('name', 'id')->toArray()
                     )
                     ->default(fn (): ?int => Setting::getWalletId('wallet_penjualan_id'))
                     ->searchable()
@@ -110,13 +109,12 @@ class SaleResource extends Resource
                 Select::make('coa_id')
                     ->label('Akun Pemasukan')
                     ->helperText('Akun untuk transaksi lunas')
-                    ->options(fn (): array =>
-                        Coa::where('is_active', true)
-                            ->where('category', 'pemasukan')
-                            ->orderBy('code')
-                            ->get()
-                            ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code . ' - ' . $coa->name])
-                            ->toArray()
+                    ->options(fn (): array => Coa::where('is_active', true)
+                        ->where('category', 'pemasukan')
+                        ->orderBy('code')
+                        ->get()
+                        ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code.' - '.$coa->name])
+                        ->toArray()
                     )
                     ->default(fn (): ?int => (int) Setting::get('coa_penjualan_id') ?: null)
                     ->searchable()
@@ -141,34 +139,46 @@ class SaleResource extends Resource
                 TextColumn::make('invoice_no')
                     ->label('No. Nota')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('date')
                     ->label('Tanggal')
                     ->date('d F Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('customer.customer_code')
                     ->label('ID Pelanggan')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('customer.name')
                     ->label('Nama Pelanggan')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('due_date')
                     ->label('Jatuh Tempo')
                     ->date('d F Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('total')
                     ->label('Total')
                     ->money('IDR', decimalPlaces: 0)
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('total_paid')
                     ->label('Dibayar')
-                    ->money('IDR', decimalPlaces: 0),
+                    ->money('IDR', decimalPlaces: 0)
+                    ->toggleable(),
                 TextColumn::make('sisa')
                     ->label('Sisa')
                     ->money('IDR', decimalPlaces: 0)
-                    ->color(fn (Sale $record): string => $record->sisa > 0 ? 'danger' : 'success'),
+                    ->color(fn (Sale $record): string => $record->sisa > 0 ? 'danger' : 'success')
+                    ->toggleable(),
+                TextColumn::make('notes')
+                    ->label('Keterangan')
+                    ->limit(40)
+                    ->toggleable(),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -183,7 +193,8 @@ class SaleResource extends Resource
                         'berjalan' => 'warning',
                         'tak_tertagih' => 'danger',
                         default => 'gray',
-                    }),
+                    })
+                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('status')

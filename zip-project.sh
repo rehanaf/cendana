@@ -12,15 +12,15 @@ trap 'rm -rf "$TMPDIR"' EXIT
 
 case "$MODE" in
   default)
-    OUT="cendana-$(date +%Y%m%d-%H%M%S).zip"
+    OUT="cendana.zip"
     git ls-files -z | xargs -0 -I{} cp --parents {} "$TMPDIR/"
     ;;
   all)
-    OUT="cendana-full-$(date +%Y%m%d-%H%M%S).zip"
+    OUT="cendana-full.zip"
     rsync -a --exclude='.git/' ./ "$TMPDIR/project/"
     ;;
   update)
-    OUT="cendana-update-$(date +%Y%m%d-%H%M%S).zip"
+    OUT="cendana-update.zip"
     git ls-files -z | xargs -0 -I{} cp --parents {} "$TMPDIR/"
     if [ -d public/build ]; then
       cp -r --parents public/build "$TMPDIR/"

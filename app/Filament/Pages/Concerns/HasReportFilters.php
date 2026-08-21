@@ -10,10 +10,15 @@ use Illuminate\Database\Query\Builder;
 trait HasReportFilters
 {
     public ?string $mode = 'harian';
+
     public ?string $date = null;
+
     public ?string $reportMonth = null;
+
     public ?string $reportYear = null;
+
     public ?string $periodStart = null;
+
     public ?string $periodEnd = null;
 
     public function mountReportFilters(): void
@@ -31,22 +36,22 @@ trait HasReportFilters
             ->hiddenLabel()
             ->native(true)
             ->options([
+                'semua' => 'Semua',
                 'harian' => 'Harian',
                 'bulanan' => 'Bulanan',
                 'periode' => 'Periode',
             ])
             ->live()
-            ->afterStateUpdated(fn () => $this->dispatch('refresh-table'));
+            ->afterStateUpdated(fn () => $this->dispatchReportFiltersUpdated());
     }
 
     protected function reportDatePicker(): DatePicker
     {
         return DatePicker::make('date')
             ->hiddenLabel()
-            ->native(true)
-            ->visible(fn (): bool => $this->mode === 'harian')
+            ->native(false)
             ->live()
-            ->afterStateUpdated(fn () => $this->dispatch('refresh-table'));
+            ->afterStateUpdated(fn () => $this->dispatchReportFiltersUpdated());
     }
 
     protected function reportMonthSelect(): Select
@@ -60,9 +65,8 @@ trait HasReportFilters
                 '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
                 '10' => 'Oktober', '11' => 'November', '12' => 'Desember',
             ])
-            ->visible(fn (): bool => $this->mode === 'bulanan')
             ->live()
-            ->afterStateUpdated(fn () => $this->dispatch('refresh-table'));
+            ->afterStateUpdated(fn () => $this->dispatchReportFiltersUpdated());
     }
 
     protected function reportYearSelect(): Select
@@ -74,44 +78,65 @@ trait HasReportFilters
                 ->mapWithKeys(fn ($y) => [(string) $y => (string) $y])
                 ->toArray()
             )
-            ->visible(fn (): bool => $this->mode === 'bulanan')
             ->live()
-            ->afterStateUpdated(fn () => $this->dispatch('refresh-table'));
+            ->afterStateUpdated(fn () => $this->dispatchReportFiltersUpdated());
     }
 
     protected function reportPeriodStart(): DatePicker
     {
         return DatePicker::make('periodStart')
             ->hiddenLabel()
-            ->native(true)
-            ->visible(fn (): bool => $this->mode === 'periode')
+            ->native(false)
             ->live()
-            ->afterStateUpdated(fn () => $this->dispatch('refresh-table'));
+            ->afterStateUpdated(fn () => $this->dispatchReportFiltersUpdated());
     }
 
     protected function reportPeriodEnd(): DatePicker
     {
         return DatePicker::make('periodEnd')
             ->hiddenLabel()
-            ->native(true)
-            ->visible(fn (): bool => $this->mode === 'periode')
+            ->native(false)
             ->live()
-            ->afterStateUpdated(fn () => $this->dispatch('refresh-table'));
+            ->afterStateUpdated(fn () => $this->dispatchReportFiltersUpdated());
     }
 
     protected function reportFilterComponents(): array
     {
-        return [
-            $this->reportModeSelect(),
-            $this->reportDatePicker(),
-            $this->reportMonthSelect(),
-            $this->reportYearSelect(),
-            $this->reportPeriodStart(),
-            $this->reportPeriodEnd(),
-        ];
+        return match ($this->mode) {
+            'harian' => [
+                $this->reportModeSelect(),
+                $this->reportDatePicker(),
+            ],
+            'bulanan' => [
+                $this->reportModeSelect(),
+                $this->reportMonthSelect(),
+                $this->reportYearSelect(),
+            ],
+            'periode' => [
+                $this->reportModeSelect(),
+                $this->reportPeriodStart(),
+                $this->reportPeriodEnd(),
+            ],
+            default => [
+                $this->reportModeSelect(),
+            ],
+        };
     }
 
-    protected function applyModeFilter(Builder | EloquentBuilder $query, string $dateColumn = 'date'): Builder | EloquentBuilder
+    protected function dispatchReportFiltersUpdated(): void
+    {
+        $this->dispatch('refresh-table');
+        $this->dispatch('update-report-filters', [
+            'mode' => $this->mode,
+            'date' => $this->date,
+            'reportMonth' => $this->reportMonth,
+            'reportYear' => $this->reportYear,
+            'periodStart' => $this->periodStart,
+            'periodEnd' => $this->periodEnd,
+        ]);
+    }
+
+    protected function applyModeFilter(Builder|EloquentBuilder $query, string $dateColumn = 'date'): Builder|EloquentBuilder
     {
         if ($this->mode === 'harian' && $this->date) {
             return $query->whereDate($dateColumn, $this->date);

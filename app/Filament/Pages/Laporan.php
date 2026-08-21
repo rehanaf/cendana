@@ -13,9 +13,7 @@ class Laporan extends Page
 
     protected static ?int $navigationSort = 1;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Laporan';
-
-    public static function getNavigationIcon(): string | BackedEnum | null
+    public static function getNavigationIcon(): string|BackedEnum|null
     {
         return Heroicon::OutlinedDocumentChartBar;
     }
@@ -27,7 +25,7 @@ class Laporan extends Page
 
     public function getTitle(): string
     {
-        return 'Laporan Keuangan';
+        return 'Laporan';
     }
 
     public static function getDefaultSlug(): string

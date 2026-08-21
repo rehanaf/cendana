@@ -39,7 +39,7 @@ class SopResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'SOP';
 
-    public static function getNavigationIcon(): string | BackedEnum | null
+    public static function getNavigationIcon(): string|BackedEnum|null
     {
         return Heroicon::OutlinedDocumentText;
     }
@@ -88,10 +88,9 @@ class SopResource extends Resource
                 Select::make('role_id')
                     ->label('Pilih Divisi')
                     ->placeholder('Pilih divisi')
-                    ->options(fn (): array =>
-                        Role::orderBy('name')
-                            ->pluck('name', 'id')
-                            ->toArray()
+                    ->options(fn (): array => Role::orderBy('name')
+                        ->pluck('name', 'id')
+                        ->toArray()
                     )
                     ->searchable()
                     ->visible(fn (Get $get): bool => $get('access_type') === Sop::ACCESS_SPECIFIC_DIVISION)
@@ -159,6 +158,11 @@ class SopResource extends Resource
                         Sop::ACCESS_SPECIFIC_DIVISION => 'Salah Satu Divisi',
                         Sop::ACCESS_PUBLIC => 'Publik',
                     ]),
+                SelectFilter::make('role')
+                    ->label('Divisi')
+                    ->relationship('role', 'name')
+                    ->searchable()
+                    ->preload(),
             ])
             ->recordActions([
                 Action::make('lihat_pdf')

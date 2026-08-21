@@ -96,6 +96,15 @@ abstract class BaseReportPage extends Page implements HasTable
             ->columns($this->getColumns());
     }
 
+    public function getTableRecordKey(\Illuminate\Database\Eloquent\Model|array $record): string
+    {
+        if (is_array($record)) {
+            return (string) ($record['invoice_no'] ?? $record['id'] ?? $record['nama'] ?? '');
+        }
+
+        return (string) ($record->invoice_no ?? $record->id ?? $record->nama ?? '');
+    }
+
     abstract protected function getQuery();
 
     abstract protected function getColumns(): array;

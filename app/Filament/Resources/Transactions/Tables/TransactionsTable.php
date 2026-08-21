@@ -10,6 +10,7 @@ use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class TransactionsTable
 {
@@ -20,15 +21,29 @@ class TransactionsTable
                 TextColumn::make('transaction_date')
                     ->label('Tanggal')
                     ->date('d F Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
+                TextColumn::make('sumber')
+                    ->label('Sumber')
+                    ->badge()
+                    ->color(fn (Transaction $record): string => match ($record->sumber_type) {
+                        'sale' => 'success',
+                        'purchase' => 'danger',
+                        'subscription' => 'info',
+                        'retail' => 'primary',
+                        default => 'gray',
+                    })
+                    ->toggleable(),
                 TextColumn::make('coa.code')
                     ->label('Kode')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('coa.name')
                     ->label('Nama')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('description')
                     ->label('Keterangan')
                     ->limit(40)
@@ -48,7 +63,8 @@ class TransactionsTable
                         'transfer' => 'warning',
                         default => 'gray',
                     })
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('wallet.name')
                     ->label('Dompet Asal')
                     ->searchable()
@@ -68,17 +84,41 @@ class TransactionsTable
                         'transfer' => 'warning',
                         default => 'gray',
                     })
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('coa.category')
+                SelectFilter::make('kategori')
                     ->label('Kategori')
-                    ->relationship('coa', 'category')
                     ->options([
                         'pemasukan' => 'Pemasukan',
                         'pengeluaran' => 'Pengeluaran',
                         'transfer' => 'Transfer',
-                    ]),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => filled($data['value'] ?? null)
+                        ? $query->whereHas('coa', fn (Builder $q) => $q->where('category', $data['value']))
+                        : $query),
+                SelectFilter::make('sumber')
+                    ->label('Sumber')
+                    ->options([
+                        'sale' => 'Penjualan',
+                        'purchase' => 'Pembelian',
+                        'subscription' => 'Langganan',
+                        'retail' => 'Retail',
+                        'manual' => 'Manual',
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
+                        'sale' => $query->whereNotNull('sale_id'),
+                        'purchase' => $query->whereNotNull('purchase_id'),
+                        'subscription' => $query->whereNotNull('subscription_invoice_id'),
+                        'retail' => $query->whereNotNull('retail_invoice_id'),
+                        'manual' => $query
+                            ->whereNull('sale_id')
+                            ->whereNull('purchase_id')
+                            ->whereNull('subscription_invoice_id')
+                            ->whereNull('retail_invoice_id'),
+                        default => $query,
+                    }),
             ])
             ->recordActions([
                 EditAction::make()

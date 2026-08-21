@@ -6,6 +6,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -44,21 +45,19 @@ class AdminPanelProvider extends PanelProvider
                 FilamentInfoWidget::class,
             ])
             ->navigationGroups([
-                \Filament\Navigation\NavigationGroup::make()
-                    ->label('Laporan'),
-                \Filament\Navigation\NavigationGroup::make()
+                NavigationGroup::make()
                     ->label('Laporan Keuangan'),
-                \Filament\Navigation\NavigationGroup::make()
+                NavigationGroup::make()
                     ->label('Kas'),
-                \Filament\Navigation\NavigationGroup::make()
+                NavigationGroup::make()
                     ->label('Pelanggan'),
-                \Filament\Navigation\NavigationGroup::make()
+                NavigationGroup::make()
                     ->label('Penjualan'),
-                \Filament\Navigation\NavigationGroup::make()
+                NavigationGroup::make()
                     ->label('Pembelian'),
-                \Filament\Navigation\NavigationGroup::make()
+                NavigationGroup::make()
                     ->label('SOP'),
-                \Filament\Navigation\NavigationGroup::make()
+                NavigationGroup::make()
                     ->label('Pengaturan'),
             ])
             ->middleware([

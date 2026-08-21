@@ -65,6 +65,48 @@ class Transaction extends Model
         $this->retailInvoice?->refreshStatus();
     }
 
+    public function getSumberAttribute(): string
+    {
+        if ($this->sale_id) {
+            return 'Penjualan'.($this->sale ? ' • '.$this->sale->invoice_no : '');
+        }
+
+        if ($this->purchase_id) {
+            return 'Pembelian'.($this->purchase ? ' • '.$this->purchase->invoice_no : '');
+        }
+
+        if ($this->subscription_invoice_id) {
+            return 'Langganan'.($this->subscriptionInvoice ? ' • '.$this->subscriptionInvoice->invoice_no : '');
+        }
+
+        if ($this->retail_invoice_id) {
+            return 'Retail'.($this->retailInvoice ? ' • '.$this->retailInvoice->invoice_no : '');
+        }
+
+        return 'Manual';
+    }
+
+    public function getSumberTypeAttribute(): string
+    {
+        if ($this->sale_id) {
+            return 'sale';
+        }
+
+        if ($this->purchase_id) {
+            return 'purchase';
+        }
+
+        if ($this->subscription_invoice_id) {
+            return 'subscription';
+        }
+
+        if ($this->retail_invoice_id) {
+            return 'retail';
+        }
+
+        return 'manual';
+    }
+
     public function recalculateBalance(?int $walletId): void
     {
         if (! $walletId) {

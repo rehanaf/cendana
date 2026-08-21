@@ -57,7 +57,7 @@ class DatabaseSeeder extends Seeder
         }
 
         foreach ($permissions as $name) {
-            Permission::create(['name' => $name]);
+            Permission::firstOrCreate(['name' => $name]);
         }
 
         $roleNames = [
@@ -72,12 +72,12 @@ class DatabaseSeeder extends Seeder
 
         $roles = [];
         foreach ($roleNames as $name) {
-            $roles[$name] = Role::create(['name' => $name]);
+            $roles[$name] = Role::firstOrCreate(['name' => $name]);
         }
 
-        $roles['Administrator']->permissions()->attach(Permission::all());
+        $roles['Administrator']->permissions()->syncWithoutDetaching(Permission::all());
 
-        $roles['Direktur']->permissions()->attach(Permission::all());
+        $roles['Direktur']->permissions()->syncWithoutDetaching(Permission::all());
 
         $financeViewCreate = Permission::query()
             ->whereIn('name', [
@@ -90,7 +90,7 @@ class DatabaseSeeder extends Seeder
                 ->orWhere(fn ($q) => $q->where('name', 'like', 'create_%')))
             ->get();
 
-        $roles['Finance']->permissions()->attach($financeViewCreate);
+        $roles['Finance']->permissions()->syncWithoutDetaching($financeViewCreate->pluck('id'));
 
         $businessFull = Permission::query()
             ->whereIn('name', collect($businessEntities)
@@ -99,30 +99,38 @@ class DatabaseSeeder extends Seeder
             ->get();
 
         foreach (['General Manager', 'HR Manager', 'Sales', 'Technician'] as $roleName) {
-            $roles[$roleName]->permissions()->attach($businessFull);
+            $roles[$roleName]->permissions()->syncWithoutDetaching($businessFull->pluck('id'));
         }
 
         $sopView = Permission::where('name', 'view_sops')->first();
         foreach (['General Manager', 'HR Manager', 'Finance', 'Sales', 'Technician'] as $roleName) {
             if ($sopView) {
-                $roles[$roleName]->permissions()->attach($sopView->id);
+                $roles[$roleName]->permissions()->syncWithoutDetaching([$sopView->id]);
             }
         }
 
-        $admin = User::factory()->admin()->create([
-            'name' => 'Admin',
-            'email' => 'admin@cendana.com',
-        ]);
+        $admin = User::query()->updateOrCreate(
+            ['email' => 'admin@cendana.com'],
+            [
+                'name' => 'Admin',
+                'password' => 'password',
+                'role_id' => $roles['Administrator']->id,
+            ],
+        );
 
-        $user = User::factory()->create([
-            'name' => 'User Biasa',
-            'email' => 'user@cendana.com',
-        ]);
+        $user = User::query()->updateOrCreate(
+            ['email' => 'user@cendana.com'],
+            [
+                'name' => 'User Biasa',
+                'password' => 'password',
+                'role_id' => $roles['Finance']->id,
+            ],
+        );
 
-        $tunai = Wallet::create(['name' => 'Tunai', 'balance' => 0]);
-        $bri = Wallet::create(['name' => 'BRI', 'balance' => 0]);
-        $bca = Wallet::create(['name' => 'BCA', 'balance' => 0]);
-        $gopay = Wallet::create(['name' => 'GoPay', 'balance' => 0]);
+        $tunai = Wallet::firstOrCreate(['name' => 'Tunai'], ['balance' => 0]);
+        $bri = Wallet::firstOrCreate(['name' => 'BRI'], ['balance' => 0]);
+        $bca = Wallet::firstOrCreate(['name' => 'BCA'], ['balance' => 0]);
+        $gopay = Wallet::firstOrCreate(['name' => 'GoPay'], ['balance' => 0]);
 
         $coas = [];
         $coaData = [
@@ -139,75 +147,80 @@ class DatabaseSeeder extends Seeder
             ['code' => '2-1000', 'name' => 'Utang Usaha', 'type' => 'liability', 'category' => null],
         ];
         foreach ($coaData as $c) {
-            $coas[$c['code']] = Coa::create($c);
+            $coas[$c['code']] = Coa::firstOrCreate(
+                ['code' => $c['code']],
+                ['name' => $c['name'], 'type' => $c['type'], 'category' => $c['category']],
+            );
         }
 
-        $transactions = [];
-        $now = now();
-        for ($day = 30; $day >= 0; $day--) {
-            $date = $now->copy()->subDays($day);
+        if (Transaction::query()->count() === 0) {
+            $transactions = [];
+            $now = now();
+            for ($day = 30; $day >= 0; $day--) {
+                $date = $now->copy()->subDays($day);
 
-            if ($date->isSaturday() || $date->isSunday()) {
-                continue;
-            }
+                if ($date->isSaturday() || $date->isSunday()) {
+                    continue;
+                }
 
-            if (rand(0, 2) === 0) {
+                if (rand(0, 2) === 0) {
+                    $transactions[] = [
+                        'name' => 'Pendapatan Harian',
+                        'user_id' => $admin->id,
+                        'wallet_id' => $bri->id,
+                        'coa_id' => $coas['4-1000']->id,
+                        'amount' => rand(15, 50) * 100000,
+                        'transaction_date' => $date->format('Y-m-d'),
+                    ];
+                }
+
                 $transactions[] = [
-                    'name' => 'Pendapatan Harian',
+                    'name' => 'Makan Siang',
                     'user_id' => $admin->id,
-                    'wallet_id' => $bri->id,
-                    'coa_id' => $coas['4-1000']->id,
-                    'amount' => rand(15, 50) * 100000,
+                    'wallet_id' => $tunai->id,
+                    'coa_id' => $coas['5-4000']->id,
+                    'amount' => rand(15, 50) * 1000,
                     'transaction_date' => $date->format('Y-m-d'),
                 ];
+
+                if (rand(0, 1)) {
+                    $transactions[] = [
+                        'name' => 'Transportasi',
+                        'user_id' => $admin->id,
+                        'wallet_id' => $gopay->id,
+                        'coa_id' => $coas['5-3000']->id,
+                        'amount' => rand(20, 100) * 1000,
+                        'transaction_date' => $date->format('Y-m-d'),
+                    ];
+                }
+
+                if ($day % 7 === 0) {
+                    $transactions[] = [
+                        'name' => 'Belanja Bulanan',
+                        'user_id' => $admin->id,
+                        'wallet_id' => $gopay->id,
+                        'coa_id' => $coas['5-2000']->id,
+                        'amount' => rand(30, 75) * 10000,
+                        'transaction_date' => $date->format('Y-m-d'),
+                    ];
+                }
+
+                if ($day % 14 === 0) {
+                    $transactions[] = [
+                        'name' => 'Transfer ke BRI',
+                        'user_id' => $admin->id,
+                        'wallet_id' => $gopay->id,
+                        'to_wallet_id' => $bri->id,
+                        'coa_id' => $coas['1-2000']->id,
+                        'amount' => rand(50, 150) * 10000,
+                        'transaction_date' => $date->format('Y-m-d'),
+                    ];
+                }
             }
 
-            $transactions[] = [
-                'name' => 'Makan Siang',
-                'user_id' => $admin->id,
-                'wallet_id' => $tunai->id,
-                'coa_id' => $coas['5-4000']->id,
-                'amount' => rand(15, 50) * 1000,
-                'transaction_date' => $date->format('Y-m-d'),
-            ];
-
-            if (rand(0, 1)) {
-                $transactions[] = [
-                    'name' => 'Transportasi',
-                    'user_id' => $admin->id,
-                    'wallet_id' => $gopay->id,
-                    'coa_id' => $coas['5-3000']->id,
-                    'amount' => rand(20, 100) * 1000,
-                    'transaction_date' => $date->format('Y-m-d'),
-                ];
+            foreach ($transactions as $t) {
+                Transaction::create($t);
             }
-
-            if ($day % 7 === 0) {
-                $transactions[] = [
-                    'name' => 'Belanja Bulanan',
-                    'user_id' => $admin->id,
-                    'wallet_id' => $gopay->id,
-                    'coa_id' => $coas['5-2000']->id,
-                    'amount' => rand(30, 75) * 10000,
-                    'transaction_date' => $date->format('Y-m-d'),
-                ];
-            }
-
-            if ($day % 14 === 0) {
-                $transactions[] = [
-                    'name' => 'Transfer ke BRI',
-                    'user_id' => $admin->id,
-                    'wallet_id' => $gopay->id,
-                    'to_wallet_id' => $bri->id,
-                    'coa_id' => $coas['1-2000']->id,
-                    'amount' => rand(50, 150) * 10000,
-                    'transaction_date' => $date->format('Y-m-d'),
-                ];
-            }
-        }
-
-        foreach ($transactions as $t) {
-            Transaction::create($t);
         }
     }
 }

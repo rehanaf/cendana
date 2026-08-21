@@ -1,7 +1,7 @@
 <x-filament-panels::page>
     <div class="space-y-6">
         @foreach ($categories as $category => $data)
-            <x-filament::section>
+            <x-filament::section collapsible>
                 <x-slot name="heading">
                     <div class="flex items-center gap-2">
                         @if (isset($data['icon']))

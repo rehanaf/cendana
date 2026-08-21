@@ -41,7 +41,7 @@ class PurchaseResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Pembelian';
 
-    public static function getNavigationIcon(): string | BackedEnum | null
+    public static function getNavigationIcon(): string|BackedEnum|null
     {
         return Heroicon::OutlinedShoppingBag;
     }
@@ -98,8 +98,7 @@ class PurchaseResource extends Resource
                 Select::make('wallet_id')
                     ->label('Dompet Pembayaran')
                     ->helperText('Dompet yang digunakan untuk transaksi lunas')
-                    ->options(fn (): array =>
-                        Wallet::where('is_active', true)->orderBy('name')->pluck('name', 'id')->toArray()
+                    ->options(fn (): array => Wallet::where('is_active', true)->orderBy('name')->pluck('name', 'id')->toArray()
                     )
                     ->default(fn (): ?int => Setting::getWalletId('wallet_pembelian_id'))
                     ->searchable()
@@ -107,13 +106,12 @@ class PurchaseResource extends Resource
                 Select::make('coa_id')
                     ->label('Akun Pengeluaran')
                     ->helperText('Akun untuk transaksi lunas')
-                    ->options(fn (): array =>
-                        Coa::where('is_active', true)
-                            ->where('category', 'pengeluaran')
-                            ->orderBy('code')
-                            ->get()
-                            ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code . ' - ' . $coa->name])
-                            ->toArray()
+                    ->options(fn (): array => Coa::where('is_active', true)
+                        ->where('category', 'pengeluaran')
+                        ->orderBy('code')
+                        ->get()
+                        ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code.' - '.$coa->name])
+                        ->toArray()
                     )
                     ->default(fn (): ?int => (int) Setting::get('coa_pembelian_id') ?: null)
                     ->searchable()
@@ -133,30 +131,41 @@ class PurchaseResource extends Resource
                 TextColumn::make('invoice_no')
                     ->label('No. Nota')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('date')
                     ->label('Tanggal')
                     ->date('d F Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('vendor.name')
                     ->label('Vendor')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('due_date')
                     ->label('Jatuh Tempo')
                     ->date('d F Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('total')
                     ->label('Total')
                     ->money('IDR', decimalPlaces: 0)
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('total_paid')
                     ->label('Dibayar')
-                    ->money('IDR', decimalPlaces: 0),
+                    ->money('IDR', decimalPlaces: 0)
+                    ->toggleable(),
                 TextColumn::make('sisa')
                     ->label('Sisa')
                     ->money('IDR', decimalPlaces: 0)
-                    ->color(fn (Purchase $record): string => $record->sisa > 0 ? 'danger' : 'success'),
+                    ->color(fn (Purchase $record): string => $record->sisa > 0 ? 'danger' : 'success')
+                    ->toggleable(),
+                TextColumn::make('notes')
+                    ->label('Keterangan')
+                    ->limit(40)
+                    ->toggleable(),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -169,7 +178,8 @@ class PurchaseResource extends Resource
                         'lunas' => 'success',
                         'berjalan' => 'warning',
                         default => 'gray',
-                    }),
+                    })
+                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('status')

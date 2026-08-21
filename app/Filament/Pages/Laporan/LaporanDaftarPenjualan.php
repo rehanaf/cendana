@@ -12,6 +12,8 @@ class LaporanDaftarPenjualan extends BaseReportPage
 {
     public ?string $source = '';
 
+    public ?string $mode = 'semua';
+
     public static function reportLabel(): string
     {
         return 'Daftar Penjualan';
@@ -70,6 +72,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 's.invoice_no as invoice_no',
                 's.date as date',
                 DB::raw('COALESCE(c.name, \'\') as customer_name'),
+                DB::raw('\'Corporate\' as customer_type'),
                 DB::raw('\'Penjualan\' as sumber'),
                 's.total as total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.sale_id = s.id) as total_paid'),
@@ -85,6 +88,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 'si.invoice_no as invoice_no',
                 'si.date as date',
                 DB::raw('COALESCE(c.name, \'\') as customer_name'),
+                DB::raw('\'Corporate\' as customer_type'),
                 DB::raw('\'Langganan\' as sumber'),
                 'si.total as total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.subscription_invoice_id = si.id) as total_paid'),
@@ -100,6 +104,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 'ri.invoice_no as invoice_no',
                 'ri.date as date',
                 DB::raw('COALESCE(rc.name, \'\') as customer_name'),
+                DB::raw('\'Retail\' as customer_type'),
                 DB::raw('\'Retail\' as sumber'),
                 'ri.total as total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.retail_invoice_id = ri.id) as total_paid'),
@@ -120,6 +125,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 DB::raw('COALESCE(NULLIF(t.description, \'\'), CONCAT(\'Transaksi #\', t.id)) as invoice_no'),
                 't.transaction_date as date',
                 DB::raw('\'\' as customer_name'),
+                DB::raw('\'-\' as customer_type'),
                 DB::raw('\'Pendapatan Lain\' as sumber'),
                 't.amount as total',
                 't.amount as total_paid',
@@ -152,7 +158,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
 
         $query = Transaction::query()
             ->fromSub($union, 'penjualan')
-            ->select(['invoice_no', 'date', 'customer_name', 'sumber', 'total', 'total_paid', 'status']);
+            ->select(['invoice_no', 'date', 'customer_name', 'customer_type', 'sumber', 'total', 'total_paid', 'status']);
 
         $query = match ($this->source) {
             'corporate' => $query->whereIn('sumber', ['Penjualan', 'Langganan']),
@@ -179,8 +185,16 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 ->label('Pelanggan')
                 ->searchable()
                 ->sortable(),
+            TextColumn::make('customer_type')
+                ->label('Tipe Pelanggan')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'Corporate' => 'info',
+                    'Retail' => 'success',
+                    default => 'gray',
+                }),
             TextColumn::make('sumber')
-                ->label('Jenis')
+                ->label('Sumber')
                 ->badge()
                 ->color(fn (string $state): string => match ($state) {
                     'Penjualan' => 'info',

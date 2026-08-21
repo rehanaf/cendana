@@ -11,6 +11,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class TransactionResource extends Resource
 {
@@ -22,7 +24,7 @@ class TransactionResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Kas';
 
-    public static function getNavigationIcon(): string | BackedEnum | null
+    public static function getNavigationIcon(): string|BackedEnum|null
     {
         return Heroicon::OutlinedCurrencyDollar;
     }
@@ -49,23 +51,24 @@ class TransactionResource extends Resource
         return $user?->isAdmin() || $user?->hasPermission('create_transactions');
     }
 
-    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    public static function canEdit(Model $record): bool
     {
         $user = auth()->user();
 
         return $user?->isAdmin() || $user?->hasPermission('edit_transactions');
     }
 
-    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    public static function canDelete(Model $record): bool
     {
         $user = auth()->user();
 
         return $user?->isAdmin() || $user?->hasPermission('delete_transactions');
     }
 
-    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery();
+        return parent::getEloquentQuery()
+            ->with(['sale', 'purchase', 'subscriptionInvoice', 'retailInvoice']);
     }
 
     public static function form(Schema $schema): Schema
