@@ -71,6 +71,7 @@ class LaporanUtangSupplier extends BaseReportPage
                 DB::raw('COALESCE(v.name, \'\') as vendor_name'),
                 'purchases.date as date',
                 'purchases.due_date as due_date',
+                'purchases.notes as notes',
                 'purchases.total as total',
                 DB::raw('COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.purchase_id = purchases.id), 0) as paid'),
                 DB::raw('purchases.total - COALESCE((SELECT SUM(t.amount) FROM transactions t WHERE t.purchase_id = purchases.id), 0) as sisa'),
@@ -88,32 +89,43 @@ class LaporanUtangSupplier extends BaseReportPage
             TextColumn::make('invoice_no')
                 ->label('No. Nota')
                 ->searchable()
-                ->sortable(),
-            TextColumn::make('vendor_name')
-                ->label('Vendor')
-                ->searchable()
-                ->sortable(),
+                ->sortable()
+                ->toggleable(),
             TextColumn::make('date')
                 ->label('Tanggal')
                 ->date('d F Y')
-                ->sortable(),
+                ->sortable()
+                ->toggleable(),
             TextColumn::make('due_date')
                 ->label('Jatuh Tempo')
                 ->date('d F Y')
-                ->sortable(),
+                ->sortable()
+                ->toggleable(),
+            TextColumn::make('vendor_name')
+                ->label('Vendor')
+                ->searchable()
+                ->sortable()
+                ->toggleable(),
+            TextColumn::make('notes')
+                ->label('Keterangan')
+                ->searchable()
+                ->toggleable(),
             TextColumn::make('total')
                 ->label('Total')
                 ->formatStateUsing(fn ($state): string => $this->money((float) $state))
-                ->sortable(),
+                ->sortable()
+                ->toggleable(),
             TextColumn::make('paid')
                 ->label('Dibayar')
                 ->formatStateUsing(fn ($state): string => $this->money((float) $state))
-                ->color('success'),
+                ->color('success')
+                ->toggleable(),
             TextColumn::make('sisa')
                 ->label('Sisa')
                 ->formatStateUsing(fn ($state): string => $this->money((float) $state))
                 ->color('danger')
-                ->sortable(),
+                ->sortable()
+                ->toggleable(),
         ];
     }
 }

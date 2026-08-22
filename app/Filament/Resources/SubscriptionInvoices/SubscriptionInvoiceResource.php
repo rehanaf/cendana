@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\SubscriptionInvoices;
 
 use App\Filament\Actions\BayarAction;
+use App\Filament\Actions\BayarGabunganAction;
 use App\Filament\Resources\Concerns\HasResourcePermissions;
 use App\Filament\Resources\SubscriptionInvoices\Pages\ManageSubscriptionInvoices;
 use App\Models\Coa;
@@ -204,6 +205,12 @@ class SubscriptionInvoiceResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BayarGabunganAction::make()
+                        ->linkColumn('subscription_invoice_id')
+                        ->coaSettingKey('coa_langganan_id')
+                        ->walletSettingKey('wallet_langganan_id')
+                        ->namePrefix('Pembayaran Langganan')
+                        ->coaCategory('pemasukan'),
                     DeleteBulkAction::make()
                         ->label('Hapus yang Dipilih'),
                 ]),

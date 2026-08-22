@@ -15,6 +15,7 @@ class Transaction extends Model
         'to_wallet_id',
         'amount',
         'description',
+        'transaction_reference_id',
         'transaction_date',
         'sale_id',
         'purchase_id',
@@ -161,5 +162,10 @@ class Transaction extends Model
     public function retailInvoice(): BelongsTo
     {
         return $this->belongsTo(RetailInvoice::class, 'retail_invoice_id');
+    }
+
+    public function reference(): BelongsTo
+    {
+        return $this->belongsTo(TransactionReference::class, 'transaction_reference_id');
     }
 }

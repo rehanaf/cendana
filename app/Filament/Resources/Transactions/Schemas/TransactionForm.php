@@ -103,6 +103,21 @@ class TransactionForm
                     ->label('Tanggal Transaksi')
                     ->required()
                     ->default(now()),
+                Select::make('transaction_reference_id')
+                    ->label('Referensi')
+                    ->options(fn (): array =>
+                        \App\Models\TransactionReference::query()
+                            ->latest()
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn (\App\Models\TransactionReference $ref): array => [
+                                $ref->id => $ref->reference_no . ($ref->description ? ' — ' . \Illuminate\Support\Str::limit($ref->description, 40) : ''),
+                            ])
+                            ->toArray()
+                    )
+                    ->searchable()
+                    ->nullable()
+                    ->helperText('Opsional. Pilih referensi yang sama untuk transaksi yang dibayar dalam satu mutasi bank.'),
                 Textarea::make('description')
                     ->label('Keterangan')
                     ->rows(3)

@@ -68,9 +68,12 @@ class LaporanMutasiKoran extends BaseReportPage
             ->from('transactions as t')
             ->leftJoin('coas as c', 'c.id', '=', 't.coa_id')
             ->leftJoin('wallets as w', 'w.id', '=', 't.wallet_id')
+            ->leftJoin('transaction_references as tr', 'tr.id', '=', 't.transaction_reference_id')
             ->select([
                 't.transaction_date as date',
                 DB::raw('COALESCE(NULLIF(t.description, \'\'), t.name) as keterangan'),
+                DB::raw('COALESCE(tr.reference_no, \'\') as reference_no'),
+                DB::raw('COALESCE(tr.description, \'\') as referensi_keterangan'),
                 DB::raw('COALESCE(w.name, \'-\') as rekening'),
                 DB::raw('COALESCE(c.name, \'-\') as akun'),
                 DB::raw('CASE WHEN c.category = \'pemasukan\' THEN t.amount ELSE 0 END as masuk'),
@@ -101,6 +104,17 @@ class LaporanMutasiKoran extends BaseReportPage
             TextColumn::make('keterangan')
                 ->label('Keterangan')
                 ->searchable(),
+            TextColumn::make('reference_no')
+                ->label('Referensi')
+                ->searchable()
+                ->copyable()
+                ->badge()
+                ->color('gray')
+                ->toggleable(isToggledHiddenByDefault: true),
+            TextColumn::make('referensi_keterangan')
+                ->label('Ket. Referensi')
+                ->limit(40)
+                ->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('rekening')
                 ->label('Rekening')
                 ->searchable(),

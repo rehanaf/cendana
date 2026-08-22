@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Purchases;
 
 use App\Filament\Actions\BayarAction;
+use App\Filament\Actions\BayarGabunganAction;
 use App\Filament\Resources\Concerns\HasResourcePermissions;
 use App\Filament\Resources\Purchases\Pages\ManagePurchases;
 use App\Models\Coa;
@@ -202,6 +203,12 @@ class PurchaseResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BayarGabunganAction::make()
+                        ->linkColumn('purchase_id')
+                        ->coaSettingKey('coa_pembelian_id')
+                        ->walletSettingKey('wallet_pembelian_id')
+                        ->namePrefix('Pembayaran')
+                        ->coaCategory('pengeluaran'),
                     DeleteBulkAction::make()
                         ->label('Hapus yang Dipilih'),
                 ]),

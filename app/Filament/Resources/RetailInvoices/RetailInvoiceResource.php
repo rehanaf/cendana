@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\RetailInvoices;
 
 use App\Filament\Actions\BayarAction;
+use App\Filament\Actions\BayarGabunganAction;
 use App\Filament\Resources\Concerns\HasResourcePermissions;
 use App\Filament\Resources\RetailInvoices\Pages\ManageRetailInvoices;
 use App\Models\Coa;
@@ -214,6 +215,12 @@ class RetailInvoiceResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    BayarGabunganAction::make()
+                        ->linkColumn('retail_invoice_id')
+                        ->coaSettingKey('coa_retail_id')
+                        ->walletSettingKey('wallet_retail_id')
+                        ->namePrefix('Pembayaran Retail')
+                        ->coaCategory('pemasukan'),
                     DeleteBulkAction::make()
                         ->label('Hapus yang Dipilih'),
                 ]),
