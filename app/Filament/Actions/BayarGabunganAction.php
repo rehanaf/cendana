@@ -72,6 +72,7 @@ class BayarGabunganAction extends BulkAction
         $this->label('Bayar Gabungan')
             ->icon('heroicon-o-banknotes')
             ->color('warning')
+            ->deselectRecordsAfterCompletion()
             ->modalHeading('Bayar Gabungan')
             ->modalDescription('Semua nota yang dipilih akan dibayar lunas sekaligus dan dicatat sebagai transaksi terpisah yang menunjuk ke satu nomor referensi — sesuai satu mutasi bank. Keterangan akan disimpan pada referensi, bukan disalin ke tiap transaksi.')
             ->modalWidth('2xl')

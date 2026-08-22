@@ -23,6 +23,7 @@ class GabungkanReferensiAction extends BulkAction
         $this->label('Gabungkan Referensi')
             ->icon('heroicon-o-link')
             ->color('info')
+            ->deselectRecordsAfterCompletion()
             ->modalHeading('Gabungkan Referensi')
             ->modalDescription('Semua transaksi yang dipilih akan digabung ke dalam satu nomor referensi. Hanya transaksi dengan kategori sama dan belum memiliki referensi yang dapat digabungkan.')
             ->schema(fn (): array => [
