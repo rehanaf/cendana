@@ -4,6 +4,7 @@ namespace App\Filament\Resources\TroubleTickets;
 
 use App\Filament\Resources\Concerns\HasResourcePermissions;
 use App\Filament\Resources\TroubleTickets\Pages\ManageTroubleTickets;
+use App\Models\PelangganRetail;
 use App\Models\TroubleTicket;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
@@ -13,10 +14,9 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -58,6 +58,17 @@ class TroubleTicketResource extends Resource
         return 'Tiket Gangguan';
     }
 
+    public static function customerOptions(): array
+    {
+        return PelangganRetail::query()
+            ->orderBy('customer_code')
+            ->get()
+            ->mapWithKeys(fn (PelangganRetail $customer): array => [
+                $customer->id => $customer->customer_code . ' - ' . $customer->name . (! $customer->is_active ? ' (Nonaktif)' : ''),
+            ])
+            ->toArray();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
@@ -69,8 +80,7 @@ class TroubleTicketResource extends Resource
                     ->default(now()),
                 Select::make('retail_customer_id')
                     ->label('Pelanggan Retail')
-                    ->relationship('customer', 'name')
-                    ->getOptionLabelFromRecordUsing(fn ($record): string => $record->customer_code . ' - ' . $record->name)
+                    ->options(fn (): array => static::customerOptions())
                     ->searchable()
                     ->preload()
                     ->required(),
@@ -84,47 +94,29 @@ class TroubleTicketResource extends Resource
                     ->seconds(false),
                 Select::make('category')
                     ->label('Kategori Gangguan')
-                    ->options([
-                        'ringan' => 'Ringan',
-                        'sedang' => 'Sedang',
-                        'berat' => 'Berat',
-                    ])
+                    ->options(TroubleTicket::CATEGORIES)
                     ->default('ringan')
                     ->required(),
+                Select::make('handling_method')
+                    ->label('Langkah Penanganan')
+                    ->options(TroubleTicket::HANDLING_METHODS)
+                    ->placeholder('Pilih Langkah Penanganan'),
                 Select::make('status')
                     ->label('Status Tiket')
-                    ->options([
-                        'open' => 'Terbuka',
-                        'progress' => 'Dalam Penanganan',
-                        'resolved' => 'Selesai',
-                        'closed' => 'Ditutup',
-                    ])
-                    ->default('open')
+                    ->options(TroubleTicket::STATUSES)
+                    ->default('progress')
                     ->required(),
-                Select::make('pics')
+                Select::make('pic_teams')
                     ->label('Penanggung Jawab (PIC)')
+                    ->options(TroubleTicket::PIC_TEAMS)
                     ->multiple()
-                    ->relationship('pics', 'name')
-                    ->searchable()
-                    ->preload()
+                    ->maxItems(3)
                     ->columnSpanFull(),
                 Textarea::make('description')
                     ->label('Keterangan Gangguan')
                     ->rows(3)
                     ->required()
                     ->columnSpanFull(),
-                Repeater::make('steps')
-                    ->label('Langkah Penanganan')
-                    ->relationship()
-                    ->reorderable()
-                    ->orderColumn('sort')
-                    ->columnSpanFull()
-                    ->schema([
-                        TextInput::make('description')
-                            ->label('Langkah')
-                            ->required()
-                            ->columnSpanFull(),
-                    ]),
             ]);
     }
 
@@ -148,69 +140,57 @@ class TroubleTicketResource extends Resource
                 TextColumn::make('category')
                     ->label('Kategori')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'ringan' => 'Ringan',
-                        'sedang' => 'Sedang',
-                        'berat' => 'Berat',
-                        default => $state,
-                    })
+                    ->formatStateUsing(fn (string $state): string => TroubleTicket::CATEGORIES[$state] ?? $state)
                     ->color(fn (string $state): string => match ($state) {
                         'ringan' => 'success',
                         'sedang' => 'warning',
-                        'berat' => 'danger',
+                        'berat', 'kritis' => 'danger',
                         default => 'gray',
                     }),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'open' => 'Terbuka',
-                        'progress' => 'Dalam Penanganan',
-                        'resolved' => 'Selesai',
-                        'closed' => 'Ditutup',
-                        default => $state,
-                    })
+                    ->formatStateUsing(fn (string $state): string => TroubleTicket::STATUSES[$state] ?? $state)
                     ->color(fn (string $state): string => match ($state) {
-                        'open' => 'danger',
                         'progress' => 'warning',
-                        'resolved' => 'success',
-                        'closed' => 'gray',
+                        'closed' => 'success',
                         default => 'gray',
                     }),
-                TextColumn::make('pics.name')
-                    ->label('PIC')
+                TextColumn::make('handling_method')
+                    ->label('Langkah Penanganan')
                     ->badge()
-                    ->separator(', ')
+                    ->formatStateUsing(fn (?string $state): string => TroubleTicket::HANDLING_METHODS[$state] ?? '-')
+                    ->color('info')
+                    ->placeholder('-'),
+                TextColumn::make('pic_teams')
+                    ->label('PIC')
+                    ->formatStateUsing(fn ($state): string => collect(
+                        is_array($state) ? $state : ((array) json_decode((string) $state, true))
+                    )
+                        ->map(fn ($team): string => TroubleTicket::PIC_TEAMS[$team] ?? $team)
+                        ->implode(', '))
                     ->placeholder('-'),
                 TextColumn::make('start_time')
                     ->label('Mulai')
                     ->dateTime('d M Y H:i')
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('restored_time')
                     ->label('Normal Kembali')
                     ->dateTime('d M Y H:i')
-                    ->placeholder('-'),
-                TextColumn::make('steps_count')
-                    ->label('Langkah')
-                    ->counts('steps')
-                    ->alignRight(),
+                    ->placeholder('-')
+                    ->toggleable(),
             ])
             ->filters([
                 SelectFilter::make('category')
                     ->label('Kategori')
-                    ->options([
-                        'ringan' => 'Ringan',
-                        'sedang' => 'Sedang',
-                        'berat' => 'Berat',
-                    ]),
+                    ->options(TroubleTicket::CATEGORIES),
+                SelectFilter::make('handling_method')
+                    ->label('Langkah Penanganan')
+                    ->options(TroubleTicket::HANDLING_METHODS),
                 SelectFilter::make('status')
                     ->label('Status')
-                    ->options([
-                        'open' => 'Terbuka',
-                        'progress' => 'Dalam Penanganan',
-                        'resolved' => 'Selesai',
-                        'closed' => 'Ditutup',
-                    ]),
+                    ->options(TroubleTicket::STATUSES),
             ])
             ->recordActions([
                 ViewAction::make()->iconButton(),

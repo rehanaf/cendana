@@ -44,6 +44,13 @@ class TransactionResource extends Resource
         return 'Transaksi';
     }
 
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        return $user?->isAdmin() || $user?->hasPermission('view_transactions');
+    }
+
     public static function canCreate(): bool
     {
         $user = auth()->user();

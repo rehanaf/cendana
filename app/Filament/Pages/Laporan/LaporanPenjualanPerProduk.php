@@ -48,9 +48,8 @@ class LaporanPenjualanPerProduk extends BaseReportPage
                 DB::raw('COALESCE(ip.name, \'Tanpa Paket\') as produk'),
                 DB::raw('COUNT(*) as jumlah_nota'),
                 DB::raw('SUM(ri.total) as total'),
-                'ri.date',
             ])
-            ->groupBy('ip.id', 'ip.name', 'ri.date')
+            ->groupBy('ip.id', 'ip.name')
             ->orderByDesc(DB::raw('SUM(ri.total)'));
 
         $query = $this->applyModeFilter($query, 'ri.date');

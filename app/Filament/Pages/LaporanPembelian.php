@@ -31,6 +31,8 @@ class LaporanPembelian extends Page implements HasTable
 
     protected static ?int $navigationSort = 3;
 
+    protected static bool $shouldRegisterNavigation = false;
+
     protected static string|\UnitEnum|null $navigationGroup = 'Laporan Keuangan';
 
     public static function getNavigationIcon(): string | BackedEnum | null

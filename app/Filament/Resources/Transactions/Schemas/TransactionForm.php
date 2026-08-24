@@ -93,7 +93,24 @@ class TransactionForm
                     ->visible(fn (Get $get): bool =>
                         Coa::find($get('coa_id'))?->category === 'transfer' && Wallet::where('is_active', true)->count() > 1
                     )
-                    ->required(fn (Get $get): bool => Coa::find($get('coa_id'))?->category === 'transfer'),
+                    ->required(fn (Get $get): bool => Coa::find($get('coa_id'))?->category === 'transfer')
+                    ->rules([
+                        fn (Get $get): \Closure => function (string $attribute, mixed $value, \Closure $fail) use ($get): void {
+                            if (Coa::find($get('coa_id'))?->category !== 'transfer') {
+                                return;
+                            }
+
+                            if (blank($value)) {
+                                $fail('Dompet tujuan wajib dipilih untuk transaksi transfer.');
+
+                                return;
+                            }
+
+                            if ((int) $value === (int) $get('wallet_id')) {
+                                $fail('Dompet tujuan harus berbeda dari dompet asal.');
+                            }
+                        },
+                    ]),
                 TextInput::make('amount')
                     ->label('Jumlah')
                     ->numeric()

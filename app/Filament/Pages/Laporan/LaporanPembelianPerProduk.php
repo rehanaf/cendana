@@ -47,9 +47,8 @@ class LaporanPembelianPerProduk extends BaseReportPage
                 DB::raw('COALESCE(c.name, \'Tanpa Akun\') as produk'),
                 DB::raw('COUNT(*) as jumlah_nota'),
                 DB::raw('SUM(p.total) as total'),
-                'p.date',
             ])
-            ->groupBy('c.id', 'c.name', 'p.date')
+            ->groupBy('c.id', 'c.name')
             ->orderByDesc(DB::raw('SUM(p.total)'));
 
         $query = $this->applyModeFilter($query, 'p.date');

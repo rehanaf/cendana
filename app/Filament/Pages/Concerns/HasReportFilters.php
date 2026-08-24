@@ -23,6 +23,10 @@ trait HasReportFilters
 
     public function mountReportFilters(): void
     {
+        if (! in_array($this->mode, $this->reportModes(), true)) {
+            $this->mode = $this->reportModes()[0];
+        }
+
         $this->date = now()->format('Y-m-d');
         $this->reportMonth = now()->format('m');
         $this->reportYear = now()->format('Y');
@@ -30,17 +34,24 @@ trait HasReportFilters
         $this->periodEnd = now()->format('Y-m-d');
     }
 
+    protected function reportModes(): array
+    {
+        return ['semua', 'harian', 'bulanan', 'periode'];
+    }
+
     protected function reportModeSelect(): Select
     {
+        $labels = [
+            'semua' => 'Semua',
+            'harian' => 'Harian',
+            'bulanan' => 'Bulanan',
+            'periode' => 'Periode',
+        ];
+
         return Select::make('mode')
             ->hiddenLabel()
             ->native(true)
-            ->options([
-                'semua' => 'Semua',
-                'harian' => 'Harian',
-                'bulanan' => 'Bulanan',
-                'periode' => 'Periode',
-            ])
+            ->options(collect($labels)->only($this->reportModes())->all())
             ->live()
             ->afterStateUpdated(fn () => $this->dispatchReportFiltersUpdated());
     }

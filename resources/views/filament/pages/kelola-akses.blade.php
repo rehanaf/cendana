@@ -49,6 +49,17 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div class="mt-4 flex justify-end">
+                    <x-filament::button
+                        wire:click="save"
+                        color="primary"
+                        icon-position="after"
+                        icon="heroicon-m-check"
+                    >
+                        Simpan
+                    </x-filament::button>
+                </div>
             </x-filament::section>
         @endif
     </div>

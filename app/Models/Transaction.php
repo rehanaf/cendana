@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class Transaction extends Model
 {
@@ -33,10 +35,19 @@ class Transaction extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (Transaction $transaction) {
+            $transaction->normalizeTransfer();
+        });
+
         static::created(function (Transaction $transaction) {
-            $transaction->recalculateBalance($transaction->wallet_id);
-            $transaction->recalculateBalance($transaction->to_wallet_id);
+            static::recalculateWalletBalances([$transaction->wallet_id, $transaction->to_wallet_id]);
             $transaction->refreshLinkedStatus();
+        });
+
+        static::updating(function (Transaction $transaction) {
+            if ($transaction->isDirty(['coa_id', 'wallet_id', 'to_wallet_id'])) {
+                $transaction->normalizeTransfer();
+            }
         });
 
         static::updated(function (Transaction $transaction) {
@@ -45,17 +56,39 @@ class Transaction extends Model
                 $transaction->wallet_id,
                 $transaction->getOriginal('to_wallet_id'),
                 $transaction->to_wallet_id,
-            ])->unique()->filter();
+            ]);
 
-            $affected->each(fn ($id) => $transaction->recalculateBalance($id));
+            static::recalculateWalletBalances($affected->all());
             $transaction->refreshLinkedStatus();
         });
 
         static::deleted(function (Transaction $transaction) {
-            $transaction->recalculateBalance($transaction->wallet_id);
-            $transaction->recalculateBalance($transaction->to_wallet_id);
+            static::recalculateWalletBalances([$transaction->wallet_id, $transaction->to_wallet_id]);
             $transaction->refreshLinkedStatus();
         });
+    }
+
+    protected function normalizeTransfer(): void
+    {
+        $category = $this->coa_id ? Coa::find($this->coa_id)?->category : null;
+
+        if ($category !== 'transfer') {
+            $this->to_wallet_id = null;
+
+            return;
+        }
+
+        if (blank($this->to_wallet_id)) {
+            throw ValidationException::withMessages([
+                'to_wallet_id' => 'Dompet tujuan wajib dipilih untuk transaksi transfer.',
+            ]);
+        }
+
+        if ((int) $this->to_wallet_id === (int) $this->wallet_id) {
+            throw ValidationException::withMessages([
+                'to_wallet_id' => 'Dompet tujuan harus berbeda dari dompet asal.',
+            ]);
+        }
     }
 
     protected function refreshLinkedStatus(): void
@@ -110,18 +143,38 @@ class Transaction extends Model
 
     public function recalculateBalance(?int $walletId): void
     {
-        if (! $walletId) {
+        static::recalculateWalletBalances([$walletId]);
+    }
+
+    public static function recalculateWalletBalances(array $walletIds): void
+    {
+        $ids = collect($walletIds)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($ids->isEmpty()) {
             return;
         }
 
-        $out = self::with('coa')
-            ->where('wallet_id', $walletId)
-            ->get()
-            ->sum(fn ($t) => $t->coa?->category === 'pemasukan' ? $t->amount : -$t->amount);
+        DB::transaction(function () use ($ids): void {
+            Wallet::query()->whereIn('id', $ids)->lockForUpdate()->pluck('id');
 
-        $in = self::where('to_wallet_id', $walletId)->sum('amount');
+            foreach ($ids as $id) {
+                $out = (float) static::query()
+                    ->where('wallet_id', $id)
+                    ->leftJoin('coas', 'coas.id', '=', 'transactions.coa_id')
+                    ->sum(DB::raw("CASE WHEN coas.category = 'pemasukan' THEN transactions.amount ELSE -transactions.amount END"));
 
-        Wallet::where('id', $walletId)->update(['balance' => $out + $in]);
+                $in = (float) static::query()
+                    ->where('to_wallet_id', $id)
+                    ->sum('amount');
+
+                Wallet::query()->whereKey($id)->update(['balance' => round($out + $in, 2)]);
+            }
+        });
     }
 
     public function user(): BelongsTo

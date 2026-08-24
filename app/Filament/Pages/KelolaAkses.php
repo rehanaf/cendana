@@ -7,6 +7,7 @@ use App\Models\Role;
 use BackedEnum;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -103,34 +104,39 @@ class KelolaAkses extends Page
         $this->matrix = $matrix;
     }
 
-    public function updatedMatrix(mixed $value, string $key): void
+    public function save(): void
     {
-        if (! $this->roleId || ! str_contains($key, '.')) {
-            return;
-        }
-
-        [$module, $action] = explode('.', $key, 2);
-
-        if ($action === 'label') {
-            return;
-        }
-
         $role = Role::find($this->roleId);
 
         if (! $role) {
             return;
         }
 
-        $permission = Permission::firstOrCreate([
-            'name' => "{$action}_{$module}",
-            'guard_name' => 'web',
-        ]);
+        foreach ($this->matrix as $module => $row) {
+            foreach (['view', 'create', 'edit', 'delete'] as $action) {
+                if (! array_key_exists($action, $row)) {
+                    continue;
+                }
 
-        if ($value) {
-            $role->permissions()->syncWithoutDetaching([$permission->id]);
-        } else {
-            $role->permissions()->detach($permission->id);
+                $permission = Permission::firstOrCreate([
+                    'name' => "{$action}_{$module}",
+                    'guard_name' => 'web',
+                ]);
+
+                if ($row[$action]) {
+                    $role->permissions()->syncWithoutDetaching([$permission->id]);
+                } else {
+                    $role->permissions()->detach($permission->id);
+                }
+            }
         }
+
+        $this->loadMatrix();
+
+        Notification::make()
+            ->title('Hak akses berhasil disimpan')
+            ->success()
+            ->send();
     }
 
     public static function modules(): array
@@ -163,6 +169,9 @@ class KelolaAkses extends Page
             'trouble_tickets' => 'Tiket Gangguan',
             'sops' => 'SOP',
             'vendors' => 'Vendor',
+            'transactions' => 'Transaksi',
+            'wallets' => 'Dompet',
+            'coas' => 'COA',
             default => ucwords(str_replace('_', ' ', $module)),
         };
     }

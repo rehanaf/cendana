@@ -93,7 +93,13 @@ abstract class BaseReportPage extends Page implements HasTable
         return $this->makeBaseTable()
             ->query(fn () => $this->getQuery())
             ->defaultKeySort(false)
-            ->columns($this->getColumns());
+            ->columns($this->getColumns())
+            ->filters($this->getFilters());
+    }
+
+    protected function getFilters(): array
+    {
+        return [];
     }
 
     public function getTableRecordKey(\Illuminate\Database\Eloquent\Model|array $record): string

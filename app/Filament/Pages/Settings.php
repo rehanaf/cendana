@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Coa;
 use App\Models\Setting;
+use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Services\WebhookService;
 use BackedEnum;
@@ -384,6 +385,46 @@ class Settings extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('recalculateBalances')
+                ->label('Hitung Ulang Saldo')
+                ->icon('heroicon-o-arrow-path')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('Hitung Ulang Saldo Dompet')
+                ->modalDescription('Saldo semua dompet akan dihitung ulang dari seluruh catatan transaksi. Lanjutkan?')
+                ->action(function (): void {
+                    $wallets = Wallet::query()->orderBy('name')->get(['id', 'name', 'balance']);
+
+                    Transaction::recalculateWalletBalances($wallets->pluck('id')->all());
+
+                    $corrected = $wallets
+                        ->map(fn (Wallet $wallet): array => [
+                            'name' => $wallet->name,
+                            'before' => (float) $wallet->balance,
+                            'after' => (float) $wallet->fresh()->balance,
+                        ])
+                        ->filter(fn (array $wallet): bool => abs($wallet['before'] - $wallet['after']) > 0.001);
+
+                    if ($corrected->isNotEmpty()) {
+                        $detail = $corrected
+                            ->map(fn (array $wallet): string => $wallet['name'] . ' (' . number_format($wallet['before'], 0, ',', '.') . ' → ' . number_format($wallet['after'], 0, ',', '.') . ')')
+                            ->implode(', ');
+
+                        Notification::make()
+                            ->warning()
+                            ->title('Saldo berhasil dihitung ulang')
+                            ->body($wallets->count() . ' dompet diperiksa, ' . $corrected->count() . ' saldo dikoreksi: ' . $detail)
+                            ->send();
+                    } else {
+                        Notification::make()
+                            ->success()
+                            ->title('Saldo berhasil dihitung ulang')
+                            ->body($wallets->count() . ' dompet diperiksa, semua saldo sudah sesuai.')
+                            ->send();
+                    }
+
+                    $this->dispatch('refresh-sidebar');
+                }),
             Action::make('webhookExample')
                 ->label('Contoh Penggunaan Webhook')
                 ->icon('heroicon-o-book-open')

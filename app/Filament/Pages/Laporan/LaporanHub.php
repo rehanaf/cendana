@@ -7,6 +7,18 @@ class LaporanHub
     public static function categories(): array
     {
         return [
+            'Laporan Lama' => [
+                'icon' => 'heroicon-o-archive-box',
+                'items' => [
+                    ['label' => 'Laporan Keuangan', 'description' => 'Ringkasan pemasukan, pengeluaran, dan transaksi harian', 'url' => \App\Filament\Pages\LaporanKeuangan::getUrl(), 'icon' => 'heroicon-o-document-chart-bar'],
+                    ['label' => 'Laporan Penjualan', 'description' => 'Rekap penjualan dari kas dan nota', 'url' => \App\Filament\Pages\LaporanPenjualan::getUrl(), 'icon' => 'heroicon-o-banknotes'],
+                    ['label' => 'Laporan Pembelian', 'description' => 'Rekap pembelian dan pengeluaran kas', 'url' => \App\Filament\Pages\LaporanPembelian::getUrl(), 'icon' => 'heroicon-o-shopping-bag'],
+                    ['label' => 'Laporan Langganan', 'description' => 'Rekap tagihan langganan corporate', 'url' => \App\Filament\Pages\LaporanLangganan::getUrl(), 'icon' => 'heroicon-o-receipt-percent'],
+                    ['label' => 'Laporan Piutang', 'description' => 'Tagihan penjualan yang belum lunas', 'url' => \App\Filament\Pages\LaporanPiutang::getUrl(), 'icon' => 'heroicon-o-arrow-trending-up'],
+                    ['label' => 'Laporan Hutang', 'description' => 'Tagihan pembelian yang belum lunas', 'url' => \App\Filament\Pages\LaporanHutang::getUrl(), 'icon' => 'heroicon-o-arrow-trending-down'],
+                    ['label' => 'Hutang Pelanggan Corporate', 'description' => 'Saldo tagihan per pelanggan corporate', 'url' => \App\Filament\Pages\LaporanHutangPelanggan::getUrl(), 'icon' => 'heroicon-o-users'],
+                ],
+            ],
             'Sekilas Bisnis' => [
                 'icon' => 'heroicon-o-squares-2x2',
                 'items' => [

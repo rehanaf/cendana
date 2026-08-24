@@ -10,6 +10,7 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -178,7 +179,30 @@ class CoaResource extends Resource
                     ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false),
                 DeleteAction::make()
                     ->iconButton()
-                    ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false),
+                    ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false)
+                    ->action(function (DeleteAction $action, Coa $record): void {
+                        $usage = $record->usageLabels();
+
+                        if ($usage->isNotEmpty()) {
+                            Notification::make()
+                                ->danger()
+                                ->title('COA tidak dapat dihapus')
+                                ->body('Masih dipakai oleh: ' . $usage->implode(', ') . '. Nonaktifkan COA ini bila tidak digunakan lagi.')
+                                ->persistent()
+                                ->send();
+
+                            $action->halt();
+
+                            return;
+                        }
+
+                        $record->delete();
+
+                        Notification::make()
+                            ->success()
+                            ->title('COA berhasil dihapus')
+                            ->send();
+                    }),
             ])
             ->defaultSort('code');
     }
