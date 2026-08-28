@@ -9,6 +9,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -125,12 +126,64 @@ class WalletResource extends Resource
                     ->visible(fn (): bool => auth()->user()?->isAdmin() || auth()->user()?->hasPermission('manage_wallets')),
                 DeleteAction::make()
                     ->iconButton()
-                    ->visible(fn (): bool => auth()->user()?->isAdmin() || auth()->user()?->hasPermission('manage_wallets')),
+                    ->visible(fn (): bool => auth()->user()?->isAdmin() || auth()->user()?->hasPermission('manage_wallets'))
+                    ->action(function (DeleteAction $action, Wallet $record): void {
+                        $usage = $record->usageLabels();
+
+                        if ($usage->isNotEmpty()) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Dompet tidak dapat dihapus')
+                                ->body('Masih dipakai oleh: ' . $usage->implode(', ') . '. Nonaktifkan dompet ini bila tidak digunakan lagi.')
+                                ->persistent()
+                                ->send();
+
+                            $action->halt();
+
+                            return;
+                        }
+
+                        $record->delete();
+
+                        Notification::make()
+                            ->success()
+                            ->title('Dompet berhasil dihapus')
+                            ->send();
+                    }),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make()
-                        ->label('Hapus yang Dipilih'),
+                        ->label('Hapus yang Dipilih')
+                        ->action(function (DeleteBulkAction $action, $records): void {
+                            $blocked = collect();
+
+                            $records->each(function (Wallet $wallet) use ($blocked): void {
+                                if ($wallet->usageLabels()->isNotEmpty()) {
+                                    $blocked->push($wallet->name);
+                                }
+                            });
+
+                            if ($blocked->isNotEmpty()) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Sebagian dompet tidak dapat dihapus')
+                                    ->body('Masih dipakai oleh: ' . $blocked->implode(', ') . '. Nonaktifkan dompet tersebut bila tidak digunakan lagi.')
+                                    ->persistent()
+                                    ->send();
+
+                                $action->halt();
+
+                                return;
+                            }
+
+                            $records->each->delete();
+
+                            Notification::make()
+                                ->success()
+                                ->title('Dompet berhasil dihapus')
+                                ->send();
+                        }),
                 ]),
             ]);
     }

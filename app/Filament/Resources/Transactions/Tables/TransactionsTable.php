@@ -31,8 +31,22 @@ use Illuminate\Support\Facades\DB;
 
 class TransactionsTable
 {
-    public static function configure(Table $table): Table
+    public static function configure(Table $table, bool $manualOnly = false): Table
     {
+        $table
+            ->modifyQueryUsing(function (Builder $query, \Livewire\Component $livewire) use ($manualOnly): Builder {
+                if ($manualOnly) {
+                    return $query
+                        ->whereNull('sale_id')
+                        ->whereNull('purchase_id')
+                        ->whereNull('subscription_invoice_id')
+                        ->whereNull('retail_invoice_id')
+                        ->whereNull('transaction_reference_id');
+                }
+
+                return static::applyQueryFilters($query, $livewire);
+            });
+
         return $table
             ->columns([
                 TextColumn::make('transaction_date')
@@ -129,105 +143,6 @@ class TransactionsTable
                     ->sortable()
                     ->toggleable(),
             ])
-            ->modifyQueryUsing(function (Builder $query, \Livewire\Component $livewire): Builder {
-                $filters = $livewire->tableFilters ?? [];
-                $showRefs = filled($filters['tampilkanReferensi']['isActive'] ?? null);
-                $kategori = $filters['kategori']['value'] ?? null;
-                $sumber = $filters['sumber']['value'] ?? null;
-
-                if (! $showRefs) {
-                    if (in_array($kategori, ['pemasukan', 'pengeluaran', 'transfer'])) {
-                        $query->whereHas('coa', fn (Builder $q) => $q->where('category', $kategori));
-                    }
-
-                    match ($sumber) {
-                        'sale' => $query->whereNotNull('sale_id'),
-                        'purchase' => $query->whereNotNull('purchase_id'),
-                        'subscription' => $query->whereNotNull('subscription_invoice_id'),
-                        'retail' => $query->whereNotNull('retail_invoice_id'),
-                        'manual' => $query
-                            ->whereNull('sale_id')
-                            ->whereNull('purchase_id')
-                            ->whereNull('subscription_invoice_id')
-                            ->whereNull('retail_invoice_id'),
-                        default => null,
-                    };
-
-                    return $query;
-                }
-
-                $plain = (clone $query)
-                    ->whereNull('transactions.transaction_reference_id');
-
-                if (in_array($kategori, ['pemasukan', 'pengeluaran', 'transfer'])) {
-                    $plain->whereHas('coa', fn (Builder $q) => $q->where('category', $kategori));
-                } else {
-                    match ($sumber) {
-                        'sale' => $plain->whereNotNull('transactions.sale_id'),
-                        'purchase' => $plain->whereNotNull('transactions.purchase_id'),
-                        'subscription' => $plain->whereNotNull('transactions.subscription_invoice_id'),
-                        'retail' => $plain->whereNotNull('transactions.retail_invoice_id'),
-                        'manual' => $plain
-                            ->whereNull('transactions.sale_id')
-                            ->whereNull('transactions.purchase_id')
-                            ->whereNull('transactions.subscription_invoice_id')
-                            ->whereNull('transactions.retail_invoice_id'),
-                        default => null,
-                    };
-                }
-
-                $plain
-                    ->select([
-                        'transactions.id',
-                        'transactions.name',
-                        'transactions.user_id',
-                        'transactions.wallet_id',
-                        'transactions.to_wallet_id',
-                        'transactions.amount',
-                        'transactions.description',
-                        'transactions.transaction_date',
-                        'transactions.coa_id',
-                        'transactions.sale_id',
-                        'transactions.purchase_id',
-                        'transactions.subscription_invoice_id',
-                        'transactions.retail_invoice_id',
-                    ])
-                    ->selectRaw('0 as is_ref, NULL as coa_codes, NULL as coa_names, NULL as coa_categories, NULL as transaction_reference_id');
-
-                $refs = Transaction::query()
-                    ->from('transactions as t')
-                    ->join('transaction_references as tr', 'tr.id', '=', 't.transaction_reference_id')
-                    ->leftJoin('coas as c', 'c.id', '=', 't.coa_id')
-                    ->selectRaw('CAST(-MIN(t.id) AS SIGNED) as id, tr.reference_no as name')
-                    ->selectRaw('MIN(t.user_id) as user_id, MIN(t.wallet_id) as wallet_id, MIN(t.to_wallet_id) as to_wallet_id')
-                    ->selectRaw('SUM(t.amount) as amount')
-                    ->selectRaw('tr.description as description, MIN(t.transaction_date) as transaction_date')
-                    ->selectRaw('NULL as coa_id')
-                    ->selectRaw('MAX(t.sale_id) as sale_id, MAX(t.purchase_id) as purchase_id, MAX(t.subscription_invoice_id) as subscription_invoice_id, MAX(t.retail_invoice_id) as retail_invoice_id')
-                    ->selectRaw('1 as is_ref')
-                    ->selectRaw("REPLACE(GROUP_CONCAT(DISTINCT c.code), ',', ', ') as coa_codes")
-                    ->selectRaw("REPLACE(GROUP_CONCAT(DISTINCT c.name), ',', ', ') as coa_names")
-                    ->selectRaw("REPLACE(GROUP_CONCAT(DISTINCT c.category), ',', ', ') as coa_categories")
-                    ->selectRaw('t.transaction_reference_id')
-                    ->groupBy('t.transaction_reference_id', 'tr.reference_no', 'tr.description');
-
-                if (in_array($kategori, ['pemasukan', 'pengeluaran', 'transfer'])) {
-                    $refs->where('c.category', $kategori);
-                }
-
-                match ($sumber) {
-                    'sale' => $refs->whereNotNull('t.sale_id'),
-                    'purchase' => $refs->whereNotNull('t.purchase_id'),
-                    'subscription' => $refs->whereNotNull('t.subscription_invoice_id'),
-                    'retail' => $refs->whereNotNull('t.retail_invoice_id'),
-                    default => null,
-                };
-
-                // Bungkus union sebagai subquery ber-alias 'transactions'
-                // agar ORDER BY qualified (mis. transactions.id dari paginator) tetap valid.
-                return Transaction::query()
-                    ->fromSub($plain->unionAll($refs)->toBase(), 'transactions');
-            })
             ->filters([
                 Filter::make('tampilkanReferensi')
                     ->label('Tampilkan Referensi')
@@ -238,7 +153,8 @@ class TransactionsTable
                         'pemasukan' => 'Pemasukan',
                         'pengeluaran' => 'Pengeluaran',
                         'transfer' => 'Transfer',
-                    ]),
+                    ])
+                    ->query(fn (Builder $query): Builder => $query),
                 SelectFilter::make('sumber')
                     ->label('Sumber')
                     ->options([
@@ -247,7 +163,8 @@ class TransactionsTable
                         'subscription' => 'Langganan',
                         'retail' => 'Retail',
                         'manual' => 'Manual',
-                    ]),
+                    ])
+                    ->query(fn (Builder $query): Builder => $query),
             ])
             ->recordActions([
                 EditAction::make()
@@ -458,6 +375,7 @@ class TransactionsTable
     protected static function coaOptions(): array
     {
         return Coa::where('is_active', true)
+            ->where('category', '!=', 'transfer')
             ->orderBy('code')
             ->get()
             ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code . ' - ' . $coa->name])
@@ -471,5 +389,106 @@ class TransactionsTable
             ->get()
             ->mapWithKeys(fn (Wallet $w): array => [$w->id => $w->name . ' (Rp ' . number_format($w->balance, 0, ',', '.') . ')'])
             ->toArray();
+    }
+
+    protected static function applyQueryFilters(Builder $query, \Livewire\Component $livewire): Builder
+    {
+        $filters = $livewire->tableFilters ?? [];
+        $showRefs = filled($filters['tampilkanReferensi']['isActive'] ?? null);
+        $kategori = $filters['kategori']['value'] ?? null;
+        $sumber = $filters['sumber']['value'] ?? null;
+
+        if (! $showRefs) {
+            if (in_array($kategori, ['pemasukan', 'pengeluaran', 'transfer'])) {
+                $query->whereHas('coa', fn (Builder $q) => $q->where('category', $kategori));
+            }
+
+            match ($sumber) {
+                'sale' => $query->whereNotNull('sale_id'),
+                'purchase' => $query->whereNotNull('purchase_id'),
+                'subscription' => $query->whereNotNull('subscription_invoice_id'),
+                'retail' => $query->whereNotNull('retail_invoice_id'),
+                'manual' => $query
+                    ->whereNull('sale_id')
+                    ->whereNull('purchase_id')
+                    ->whereNull('subscription_invoice_id')
+                    ->whereNull('retail_invoice_id'),
+                default => null,
+            };
+
+            return $query;
+        }
+
+        $plain = (clone $query)
+            ->whereNull('transactions.transaction_reference_id');
+
+        if (in_array($kategori, ['pemasukan', 'pengeluaran', 'transfer'])) {
+            $plain->whereHas('coa', fn (Builder $q) => $q->where('category', $kategori));
+        } else {
+            match ($sumber) {
+                'sale' => $plain->whereNotNull('transactions.sale_id'),
+                'purchase' => $plain->whereNotNull('transactions.purchase_id'),
+                'subscription' => $plain->whereNotNull('transactions.subscription_invoice_id'),
+                'retail' => $plain->whereNotNull('transactions.retail_invoice_id'),
+                'manual' => $plain
+                    ->whereNull('transactions.sale_id')
+                    ->whereNull('transactions.purchase_id')
+                    ->whereNull('transactions.subscription_invoice_id')
+                    ->whereNull('transactions.retail_invoice_id'),
+                default => null,
+            };
+        }
+
+        $plain
+            ->select([
+                'transactions.id',
+                'transactions.name',
+                'transactions.user_id',
+                'transactions.wallet_id',
+                'transactions.to_wallet_id',
+                'transactions.amount',
+                'transactions.description',
+                'transactions.transaction_date',
+                'transactions.coa_id',
+                'transactions.sale_id',
+                'transactions.purchase_id',
+                'transactions.subscription_invoice_id',
+                'transactions.retail_invoice_id',
+            ])
+            ->selectRaw('0 as is_ref, NULL as coa_codes, NULL as coa_names, NULL as coa_categories, NULL as transaction_reference_id');
+
+        $refs = Transaction::query()
+            ->from('transactions as t')
+            ->join('transaction_references as tr', 'tr.id', '=', 't.transaction_reference_id')
+            ->leftJoin('coas as c', 'c.id', '=', 't.coa_id')
+            ->selectRaw('CAST(-MIN(t.id) AS SIGNED) as id, tr.reference_no as name')
+            ->selectRaw('MIN(t.user_id) as user_id, MIN(t.wallet_id) as wallet_id, MIN(t.to_wallet_id) as to_wallet_id')
+            ->selectRaw('SUM(t.amount) as amount')
+            ->selectRaw('tr.description as description, MIN(t.transaction_date) as transaction_date')
+            ->selectRaw('NULL as coa_id')
+            ->selectRaw('MAX(t.sale_id) as sale_id, MAX(t.purchase_id) as purchase_id, MAX(t.subscription_invoice_id) as subscription_invoice_id, MAX(t.retail_invoice_id) as retail_invoice_id')
+            ->selectRaw('1 as is_ref')
+            ->selectRaw("REPLACE(GROUP_CONCAT(DISTINCT c.code), ',', ', ') as coa_codes")
+            ->selectRaw("REPLACE(GROUP_CONCAT(DISTINCT c.name), ',', ', ') as coa_names")
+            ->selectRaw("REPLACE(GROUP_CONCAT(DISTINCT c.category), ',', ', ') as coa_categories")
+            ->selectRaw('t.transaction_reference_id')
+            ->groupBy('t.transaction_reference_id', 'tr.reference_no', 'tr.description');
+
+        if (in_array($kategori, ['pemasukan', 'pengeluaran', 'transfer'])) {
+            $refs->where('c.category', $kategori);
+        }
+
+        match ($sumber) {
+            'sale' => $refs->whereNotNull('t.sale_id'),
+            'purchase' => $refs->whereNotNull('t.purchase_id'),
+            'subscription' => $refs->whereNotNull('t.subscription_invoice_id'),
+            'retail' => $refs->whereNotNull('t.retail_invoice_id'),
+            default => null,
+        };
+
+        // Bungkus union sebagai subquery ber-alias 'transactions'
+        // agar ORDER BY qualified (mis. transactions.id dari paginator) tetap valid.
+        return Transaction::query()
+            ->fromSub($plain->unionAll($refs)->toBase(), 'transactions');
     }
 }
