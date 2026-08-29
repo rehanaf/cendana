@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Sales;
 
 use App\Filament\Actions\BayarAction;
 use App\Filament\Actions\BayarGabunganAction;
+use App\Filament\Actions\CetakInvoiceAction;
 use App\Filament\Resources\Concerns\HasResourcePermissions;
 use App\Filament\Resources\Sales\Pages\ManageSales;
 use App\Models\Coa;
@@ -214,6 +215,7 @@ class SaleResource extends Resource
                     ->namePrefix('Pembayaran')
                     ->coaCategory('pemasukan')
                     ->visible(fn (Sale $record): bool => $record->sisa > 0),
+                CetakInvoiceAction::make()->type('sale'),
                 EditAction::make()->iconButton(),
                 DeleteAction::make()->iconButton(),
             ])

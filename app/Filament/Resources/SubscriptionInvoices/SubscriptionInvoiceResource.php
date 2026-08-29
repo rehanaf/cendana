@@ -4,6 +4,7 @@ namespace App\Filament\Resources\SubscriptionInvoices;
 
 use App\Filament\Actions\BayarAction;
 use App\Filament\Actions\BayarGabunganAction;
+use App\Filament\Actions\CetakInvoiceAction;
 use App\Filament\Resources\Concerns\HasResourcePermissions;
 use App\Filament\Resources\SubscriptionInvoices\Pages\ManageSubscriptionInvoices;
 use App\Models\Coa;
@@ -43,7 +44,7 @@ class SubscriptionInvoiceResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Penjualan';
 
-    public static function getNavigationIcon(): string | BackedEnum | null
+    public static function getNavigationIcon(): string|BackedEnum|null
     {
         return Heroicon::OutlinedClipboardDocumentList;
     }
@@ -76,7 +77,7 @@ class SubscriptionInvoiceResource extends Resource
                 Select::make('customer_id')
                     ->label('Pelanggan')
                     ->relationship('customer', 'name')
-                    ->getOptionLabelFromRecordUsing(fn (PelangganCorporate $record): string => $record->customer_code . ' - ' . $record->name)
+                    ->getOptionLabelFromRecordUsing(fn (PelangganCorporate $record): string => $record->customer_code.' - '.$record->name)
                     ->searchable()
                     ->preload()
                     ->required(),
@@ -107,8 +108,7 @@ class SubscriptionInvoiceResource extends Resource
                 Select::make('wallet_id')
                     ->label('Dompet Pembayaran')
                     ->helperText('Dompet yang digunakan untuk transaksi lunas')
-                    ->options(fn (): array =>
-                        Wallet::where('is_active', true)->orderBy('name')->pluck('name', 'id')->toArray()
+                    ->options(fn (): array => Wallet::where('is_active', true)->orderBy('name')->pluck('name', 'id')->toArray()
                     )
                     ->default(fn (): ?int => Setting::getWalletId('wallet_langganan_id'))
                     ->searchable()
@@ -116,13 +116,12 @@ class SubscriptionInvoiceResource extends Resource
                 Select::make('coa_id')
                     ->label('Akun Pemasukan')
                     ->helperText('Akun untuk transaksi lunas')
-                    ->options(fn (): array =>
-                        Coa::where('is_active', true)
-                            ->where('category', 'pemasukan')
-                            ->orderBy('code')
-                            ->get()
-                            ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code . ' - ' . $coa->name])
-                            ->toArray()
+                    ->options(fn (): array => Coa::where('is_active', true)
+                        ->where('category', 'pemasukan')
+                        ->orderBy('code')
+                        ->get()
+                        ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code.' - '.$coa->name])
+                        ->toArray()
                     )
                     ->default(fn (): ?int => (int) Setting::get('coa_langganan_id') ?: null)
                     ->searchable()
@@ -200,6 +199,7 @@ class SubscriptionInvoiceResource extends Resource
                     ->namePrefix('Pembayaran Langganan')
                     ->coaCategory('pemasukan')
                     ->visible(fn (SubscriptionInvoice $record): bool => $record->sisa > 0),
+                CetakInvoiceAction::make()->type('subscription'),
                 EditAction::make()->iconButton(),
                 DeleteAction::make()->iconButton(),
             ])
