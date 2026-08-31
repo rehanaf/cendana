@@ -172,8 +172,7 @@ td.imgcell{position:relative;height:100%;}
     <tr><td class="ct fi" colspan="2">{{ $contactPerson ? 'Contact Person : ' . $contactPerson : '' }}</td><td class="ct bgc fb ar" colspan="2">Amount Due (IDR) :</td><td class="ct bgc fb">{{ $sisa }}</td></tr>
     <tr><td class="ct"></td><td></td><td></td><td></td><td></td></tr>
     <tr><td class="ct"></td><td></td><td></td><td></td><td></td></tr>
-    <tr class="r42 vc"><td class="ct fb ac">Service</td><td></td><td class="ct fb ac">Quantity</td><td class="ct fb ac">Price</td><td class="ct fb ac">Amount</td></tr>
-    <tr class="r42 vc bt bb"><td class="ct"></td><td></td><td></td><td></td><td></td></tr>
+    <tr class="r42 vc bt bb"><td class="ct fb ac">Service</td><td></td><td class="ct fb ac">Quantity</td><td class="ct fb ac">Price</td><td class="ct fb ac">Amount</td></tr>
     @forelse($items as $item)
     <tr class="r50 vc">
       <td class="ct" colspan="2">{{ $item['description'] ?? $item->description ?? '' }}</td>
@@ -182,9 +181,21 @@ td.imgcell{position:relative;height:100%;}
       <td class="ct ar">{{ $fmt($item['amount'] ?? $item->amount ?? 0) }}</td>
     </tr>
   @empty
+    @php
+      $fallbackDesc = trim((string) ($invoice->notes ?? ''));
+      if ($fallbackDesc === '' && ($invoice->period ?? null) !== null) {
+          $period = $invoice->period instanceof \Illuminate\Support\Carbon
+              ? $invoice->period->translatedFormat('F Y')
+              : \Illuminate\Support\Carbon::parse($invoice->period)->translatedFormat('F Y');
+          $fallbackDesc = 'Langganan Internet / Periode ' . $period;
+      }
+      if ($fallbackDesc === '') {
+          $fallbackDesc = 'Penjualan (No. ' . ($invoice->invoice_no ?? '') . ')';
+      }
+    @endphp
     <tr class="r50 vc">
-      <td class="ct" colspan="2"></td>
-      <td class="ct ac">-</td>
+      <td class="ct" colspan="2">{{ $fallbackDesc }}</td>
+      <td class="ct ac">1</td>
       <td class="ct ar">{{ $total }}</td>
       <td class="ct ar">{{ $total }}</td>
     </tr>
