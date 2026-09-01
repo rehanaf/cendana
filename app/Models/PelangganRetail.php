@@ -22,6 +22,7 @@ class PelangganRetail extends Model
         'billing_customer_id',
         'billing_username',
         'reference',
+        'notes',
         'ktp_birth_address',
         'ktp_birth_date',
         'is_active',

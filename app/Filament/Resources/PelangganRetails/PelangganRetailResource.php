@@ -105,6 +105,11 @@ class PelangganRetailResource extends Resource
                 TextInput::make('reference')
                     ->label('Marketing / Referral')
                     ->maxLength(255),
+                Textarea::make('notes')
+                    ->label('Keterangan (untuk Invoice)')
+                    ->helperText('Keterangan default yang otomatis terisi di invoice retail')
+                    ->rows(3)
+                    ->columnSpanFull(),
                 TextInput::make('ktp_birth_address')
                     ->label('Alamat Lahir (KTP)')
                     ->maxLength(255),
@@ -158,6 +163,10 @@ class PelangganRetailResource extends Resource
                     ->label('Marketing')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('notes')
+                    ->label('Keterangan')
+                    ->limit(30)
+                    ->toggleable(),
                 ToggleColumn::make('is_active')
                     ->label('Aktif'),
             ])

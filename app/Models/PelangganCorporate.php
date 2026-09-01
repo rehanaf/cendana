@@ -19,6 +19,7 @@ class PelangganCorporate extends Model
         'is_subscription',
         'monthly_fee',
         'due_day',
+        'notes',
         'is_active',
     ];
 

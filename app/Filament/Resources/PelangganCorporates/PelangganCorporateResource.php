@@ -107,6 +107,11 @@ class PelangganCorporateResource extends Resource
                     ->maxValue(28)
                     ->default(1)
                     ->visible(fn (Get $get): bool => (bool) $get('is_subscription')),
+                Textarea::make('notes')
+                    ->label('Keterangan (untuk Invoice)')
+                    ->helperText('Keterangan default yang otomatis terisi di invoice langganan')
+                    ->rows(3)
+                    ->columnSpanFull(),
                 Toggle::make('is_active')
                     ->label('Aktif')
                     ->default(true),
@@ -148,6 +153,10 @@ class PelangganCorporateResource extends Resource
                 TextColumn::make('due_day')
                     ->label('Jatuh Tempo')
                     ->sortable(),
+                TextColumn::make('notes')
+                    ->label('Keterangan')
+                    ->limit(30)
+                    ->toggleable(),
                 TextColumn::make('sales_count')
                     ->label('Penjualan')
                     ->counts('sales'),

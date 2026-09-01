@@ -7,6 +7,7 @@ use App\Models\Setting;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithRecord;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Illuminate\Database\Eloquent\Model;
 
 class CetakInvoiceAction extends Action
@@ -59,8 +60,18 @@ class CetakInvoiceAction extends Action
                         ->all())
                     ->default(fn (): ?int => (int) Setting::get($this->templateSettingKey() ?? '', 0) ?: null)
                     ->required(),
+                Textarea::make('keterangan')
+                    ->label('Keterangan')
+                    ->helperText('Keterangan/item yang tampil di invoice. Bisa diedit sebelum cetak.')
+                    ->rows(3)
+                    ->default(fn (Model $record): ?string => $record->notes ?? null),
             ])
             ->action(function (Model $record, array $data) {
+                if ($record->exists && \Schema::hasColumn($record->getTable(), 'notes')) {
+                    $record->notes = $data['keterangan'] ?? null;
+                    $record->save();
+                }
+
                 return redirect()->route('invoice.preview', [
                     'type' => $this->type,
                     'invoice' => $record->getKey(),

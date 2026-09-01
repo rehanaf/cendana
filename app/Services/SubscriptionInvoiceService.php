@@ -66,6 +66,7 @@ class SubscriptionInvoiceService
                 'coa_id' => $coa?->id,
                 'wallet_id' => Setting::getWalletId('wallet_langganan_id'),
                 'total' => $total,
+                'notes' => $customer->notes,
                 'status' => 'berjalan',
                 'created_by' => auth()->id(),
             ]);

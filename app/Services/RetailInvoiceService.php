@@ -69,6 +69,7 @@ class RetailInvoiceService
                 'coa_id' => $coa?->id,
                 'wallet_id' => Setting::getWalletId('wallet_retail_id'),
                 'total' => (float) $package->price,
+                'notes' => $customer->notes,
                 'status' => 'berjalan',
                 'created_by' => auth()->id(),
             ]);
