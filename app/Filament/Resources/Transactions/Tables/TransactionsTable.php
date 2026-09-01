@@ -117,11 +117,13 @@ class TransactionsTable
                     ->toggleable(),
                 TextColumn::make('wallet.name')
                     ->label('Dompet Asal')
+                    ->placeholder('-')
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('toWallet.name')
                     ->label('Dompet Tujuan')
+                    ->placeholder('-')
                     ->searchable()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

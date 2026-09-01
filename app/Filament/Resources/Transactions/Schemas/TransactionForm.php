@@ -54,6 +54,16 @@ class TransactionForm
                     ->label(fn (Get $get): string =>
                         Coa::find($get('coa_id'))?->category === 'transfer' ? 'Dompet Asal' : 'Dompet'
                     )
+                    ->helperText(fn (Get $get): ?string =>
+                        Coa::find($get('coa_id'))?->category === 'transfer'
+                            ? 'Opsional. Kosongkan jika transfer masuk dari luar / tanpa dompet asal.'
+                            : null
+                    )
+                    ->placeholder(fn (Get $get): string =>
+                        Coa::find($get('coa_id'))?->category === 'transfer'
+                            ? 'Tanpa Dompet Asal (Transfer Masuk)'
+                            : 'Pilih Dompet'
+                    )
                     ->options(fn (): array =>
                         Wallet::where('is_active', true)
                             ->get()
@@ -74,7 +84,7 @@ class TransactionForm
                             $set('to_wallet_id', $firstOther?->id);
                         }
                     })
-                    ->required(),
+                    ->required(fn (Get $get): bool => Coa::find($get('coa_id'))?->category !== 'transfer'),
                 Select::make('to_wallet_id')
                     ->label('Dompet Tujuan')
                     ->options(fn (Get $get): array =>
@@ -86,12 +96,12 @@ class TransactionForm
                             ->toArray()
                     )
                     ->default(fn (Get $get): ?int => Wallet::where('is_active', true)
-                        ->where('id', '!=', $get('wallet_id'))
+                        ->when($get('wallet_id'), fn ($q, $id) => $q->where('id', '!=', $id))
                         ->orderBy('name')
                         ->first()?->id
                     )
                     ->visible(fn (Get $get): bool =>
-                        Coa::find($get('coa_id'))?->category === 'transfer' && Wallet::where('is_active', true)->count() > 1
+                        Coa::find($get('coa_id'))?->category === 'transfer'
                     )
                     ->required(fn (Get $get): bool => Coa::find($get('coa_id'))?->category === 'transfer')
                     ->rules([
@@ -106,7 +116,7 @@ class TransactionForm
                                 return;
                             }
 
-                            if ((int) $value === (int) $get('wallet_id')) {
+                            if (filled($get('wallet_id')) && (int) $value === (int) $get('wallet_id')) {
                                 $fail('Dompet tujuan harus berbeda dari dompet asal.');
                             }
                         },

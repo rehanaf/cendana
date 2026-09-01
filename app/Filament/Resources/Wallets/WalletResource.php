@@ -87,6 +87,14 @@ class WalletResource extends Resource
                     ->label('Nama Dompet')
                     ->required()
                     ->maxLength(255),
+                TextInput::make('initial_balance')
+                    ->label('Saldo Awal')
+                    ->numeric()
+                    ->prefix('Rp')
+                    ->default(0)
+                    ->dehydrated(false)
+                    ->visible(fn (string $operation): bool => $operation === 'create')
+                    ->helperText('Opsional. Jika diisi > 0, sistem otomatis mencatat transaksi saldo awal.'),
                 Textarea::make('description')
                     ->label('Deskripsi')
                     ->rows(3),
@@ -121,6 +129,120 @@ class WalletResource extends Resource
                 //
             ])
             ->recordActions([
+                \Filament\Actions\Action::make('adjustBalance')
+                    ->label('Sesuaikan Saldo')
+                    ->icon(Heroicon::AdjustmentsHorizontal)
+                    ->color('warning')
+                    ->iconButton()
+                    ->visible(fn (): bool => auth()->user()?->isAdmin() || auth()->user()?->hasPermission('manage_wallets'))
+                    ->modalHeading(fn (Wallet $record): string => 'Sesuaikan Saldo Dompet: ' . $record->name)
+                    ->modalDescription('Masukkan nilai saldo sebenarnya. Sistem akan otomatis membuat transaksi penyesuaian (pemasukan/pengeluaran) sesuai selisih saldo.')
+                    ->mountUsing(function (\Filament\Actions\Action $action, ?Schema $schema, Wallet $record): void {
+                        if (! $schema) {
+                            return;
+                        }
+
+                        $schema->fill([
+                            'current_balance' => number_format((float) $record->balance, 0, ',', '.'),
+                            'new_balance' => (float) $record->balance,
+                            'transaction_date' => now()->format('Y-m-d'),
+                        ]);
+                    })
+                    ->schema([
+                        TextInput::make('current_balance')
+                            ->label('Saldo Saat Ini')
+                            ->disabled()
+                            ->dehydrated(false)
+                            ->prefix('Rp'),
+                        TextInput::make('new_balance')
+                            ->label('Saldo Baru (Target)')
+                            ->numeric()
+                            ->required()
+                            ->prefix('Rp')
+                            ->helperText('Saldo riil/sebenarnya dari dompet ini.'),
+                        \Filament\Forms\Components\Select::make('coa_id')
+                            ->label('Akun COA Penyesuaian')
+                            ->options(fn (): array =>
+                                \App\Models\Coa::where('is_active', true)
+                                    ->whereIn('category', ['pemasukan', 'pengeluaran'])
+                                    ->orderBy('code')
+                                    ->get()
+                                    ->mapWithKeys(fn (\App\Models\Coa $coa): array => [
+                                        $coa->id => '[' . ucfirst($coa->category) . '] ' . $coa->code . ' - ' . $coa->name,
+                                    ])
+                                    ->toArray()
+                            )
+                            ->searchable()
+                            ->nullable()
+                            ->helperText('Opsional. Jika kosong, sistem otomatis memakai akun default (Pendapatan Lain / Beban Operasional).'),
+                        \Filament\Forms\Components\DatePicker::make('transaction_date')
+                            ->label('Tanggal Transaksi')
+                            ->required()
+                            ->default(now()),
+                        Textarea::make('description')
+                            ->label('Keterangan Tambahan')
+                            ->placeholder('Misal: Penyesuaian fisik kas / opname kas')
+                            ->rows(2),
+                    ])
+                    ->action(function (\Filament\Actions\Action $action, array $data, Wallet $record): void {
+                        $current = (float) $record->balance;
+                        $new = (float) $data['new_balance'];
+                        $diff = round($new - $current, 2);
+
+                        if (abs($diff) < 0.01) {
+                            Notification::make()
+                                ->info()
+                                ->title('Saldo tidak berubah')
+                                ->body("Saldo dompet {$record->name} sudah sesuai dengan Rp " . number_format($new, 0, ',', '.'))
+                                ->send();
+
+                            return;
+                        }
+
+                        $date = $data['transaction_date'] ?? now()->format('Y-m-d');
+                        $userNote = filled($data['description'] ?? null) ? ' (' . $data['description'] . ')' : '';
+
+                        if ($diff > 0) {
+                            $coaId = $data['coa_id']
+                                ?? \App\Models\Coa::where('is_active', true)->where('category', 'pemasukan')->where('code', '4-2000')->value('id')
+                                ?? \App\Models\Coa::where('is_active', true)->where('category', 'pemasukan')->first()?->id;
+
+                            $desc = "Penyesuaian saldo dompet {$record->name} (+Rp " . number_format($diff, 0, ',', '.') . " : Rp " . number_format($current, 0, ',', '.') . " → Rp " . number_format($new, 0, ',', '.') . "){$userNote}";
+
+                            \App\Models\Transaction::create([
+                                'name' => 'Penyesuaian Saldo',
+                                'user_id' => auth()->id(),
+                                'wallet_id' => $record->id,
+                                'coa_id' => $coaId,
+                                'amount' => $diff,
+                                'transaction_date' => $date,
+                                'description' => $desc,
+                            ]);
+                        } else {
+                            $diffAbs = abs($diff);
+                            $coaId = $data['coa_id']
+                                ?? \App\Models\Coa::where('is_active', true)->where('category', 'pengeluaran')->where('code', '5-2000')->value('id')
+                                ?? \App\Models\Coa::where('is_active', true)->where('category', 'pengeluaran')->first()?->id;
+
+                            $desc = "Penyesuaian saldo dompet {$record->name} (-Rp " . number_format($diffAbs, 0, ',', '.') . " : Rp " . number_format($current, 0, ',', '.') . " → Rp " . number_format($new, 0, ',', '.') . "){$userNote}";
+
+                            \App\Models\Transaction::create([
+                                'name' => 'Penyesuaian Saldo',
+                                'user_id' => auth()->id(),
+                                'wallet_id' => $record->id,
+                                'coa_id' => $coaId,
+                                'amount' => $diffAbs,
+                                'transaction_date' => $date,
+                                'description' => $desc,
+                            ]);
+                        }
+
+                        Notification::make()
+                            ->success()
+                            ->title('Saldo berhasil disesuaikan')
+                            ->body("Saldo dompet {$record->name} kini menjadi Rp " . number_format($new, 0, ',', '.') . " dan transaksi penyesuaian telah dicatat.")
+                            ->send();
+                    }),
                 EditAction::make()
                     ->iconButton()
                     ->visible(fn (): bool => auth()->user()?->isAdmin() || auth()->user()?->hasPermission('manage_wallets')),

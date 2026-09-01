@@ -75,6 +75,12 @@ class Transaction extends Model
         if ($category !== 'transfer') {
             $this->to_wallet_id = null;
 
+            if (blank($this->wallet_id)) {
+                throw ValidationException::withMessages([
+                    'wallet_id' => 'Dompet wajib dipilih untuk transaksi selain transfer.',
+                ]);
+            }
+
             return;
         }
 
@@ -84,7 +90,7 @@ class Transaction extends Model
             ]);
         }
 
-        if ((int) $this->to_wallet_id === (int) $this->wallet_id) {
+        if (filled($this->wallet_id) && (int) $this->to_wallet_id === (int) $this->wallet_id) {
             throw ValidationException::withMessages([
                 'to_wallet_id' => 'Dompet tujuan harus berbeda dari dompet asal.',
             ]);
