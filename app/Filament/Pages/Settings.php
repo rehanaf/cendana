@@ -3,8 +3,13 @@
 namespace App\Filament\Pages;
 
 use App\Models\Coa;
+use App\Models\Purchase;
+use App\Models\RetailInvoice;
+use App\Models\Sale;
 use App\Models\Setting;
+use App\Models\SubscriptionInvoice;
 use App\Models\Transaction;
+use App\Models\TransactionReference;
 use App\Models\Wallet;
 use App\Services\WebhookService;
 use BackedEnum;
@@ -18,6 +23,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\DB;
 
 class Settings extends Page
 {
@@ -385,6 +391,36 @@ class Settings extends Page
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('clearAllTransactions')
+                ->label('Kosongkan Semua Transaksi')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading('Kosongkan Semua Transaksi')
+                ->modalDescription('PERINGATAN: Tindakan ini akan menghapus SELURUH catatan transaksi kas dan referensi pembayaran secara permanen, serta mereset saldo semua dompet menjadi Rp 0. Status pembayaran penjualan, pembelian, dan tagihan akan kembali menjadi belum lunas. Tindakan ini tidak dapat dibatalkan. Lanjutkan?')
+                ->modalSubmitActionLabel('Ya, Kosongkan Semua')
+                ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false)
+                ->action(function (): void {
+                    $count = Transaction::query()->count();
+
+                    DB::transaction(function (): void {
+                        Transaction::query()->delete();
+                        TransactionReference::query()->delete();
+                        Wallet::query()->update(['balance' => 0]);
+                        Sale::all()->each->refreshStatus();
+                        Purchase::all()->each->refreshStatus();
+                        SubscriptionInvoice::all()->each->refreshStatus();
+                        RetailInvoice::all()->each->refreshStatus();
+                    });
+
+                    Notification::make()
+                        ->success()
+                        ->title('Semua transaksi berhasil dikosongkan')
+                        ->body("Sebanyak {$count} transaksi dan referensi telah dihapus. Saldo semua dompet telah di-reset ke Rp 0.")
+                        ->send();
+
+                    $this->dispatch('refresh-sidebar');
+                }),
             Action::make('recalculateBalances')
                 ->label('Hitung Ulang Saldo')
                 ->icon('heroicon-o-arrow-path')
