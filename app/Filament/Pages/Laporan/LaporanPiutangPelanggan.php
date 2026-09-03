@@ -94,7 +94,7 @@ class LaporanPiutangPelanggan extends Page implements HasTable
         $sisaLangganan = $rows->where('source', 'Langganan')->sum(fn ($row): float => (float) $row->sisa_bayar);
         $sisaRetail = $rows->where('source', 'Retail')->sum(fn ($row): float => (float) $row->sisa_bayar);
 
-        return Grid::make(5)
+        return Grid::make(3)
             ->schema([
                 Stat::make('Total Piutang', 'Rp '.number_format($totalPiutang, 0, ',', '.'))
                     ->color($totalPiutang > 0 ? 'danger' : 'success'),

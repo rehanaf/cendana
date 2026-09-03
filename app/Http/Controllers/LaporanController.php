@@ -43,38 +43,7 @@ class LaporanController extends Controller
 
     protected function realSections(int $month, int $year): Collection
     {
-        $build = fn (string $category) => Coa::query()
-            ->where('category', $category)
-            ->where('is_active', true)
-            ->orderBy('code')
-            ->get()
-            ->map(function (Coa $coa) use ($month, $year): array {
-                $jumlah = (float) $coa->transactions()
-                    ->whereYear('transaction_date', $year)
-                    ->whereMonth('transaction_date', $month)
-                    ->sum('amount');
-
-                return [
-                    'nama' => $coa->name,
-                    'jumlah' => $jumlah,
-                    'jumlah_text' => number_format($jumlah, 0, '.', ','),
-                ];
-            })
-            ->filter(fn (array $baris): bool => $baris['jumlah'] > 0)
-            ->values();
-
-        $pendapatan = $build('pemasukan');
-        $beban = $build('pengeluaran');
-
-        return collect([
-            $this->makeSection('Pendapatan :', 'Total Pendapatan', $pendapatan),
-            $this->makeSection('Beban - Beban :', 'Total Biaya :', $beban),
-        ]);
-    }
-
-    protected function dummySections(int $month, int $year): Collection
-    {
-        $rows = function (array $defs) use ($month, $year): Collection {
+        $build = function (array $defs) use ($month, $year): Collection {
             return collect($defs)->map(function (array $def) use ($month, $year): array {
                 $jumlah = (float) Coa::query()
                     ->whereKey($def['coa_id'])
@@ -93,20 +62,20 @@ class LaporanController extends Controller
             })->values();
         };
 
-        $penjualan = $rows([
+        $penjualan = $build([
             ['teks' => 'Penjualan Rutin Corporate :', 'coa_id' => 19],
             ['teks' => 'Penjualan Rutin Retail :', 'coa_id' => 18],
             ['teks' => 'Pendapatan dari Piutang bulan sebelumnya', 'coa_id' => 20],
             ['teks' => 'Penjualan Pekerjaan Lain-Lain :', 'coa_id' => 22],
         ]);
 
-        $pembelian = $rows([
+        $pembelian = $build([
             ['teks' => 'Belanja Internet', 'coa_id' => 30],
             ['teks' => 'Pembelian Cash:', 'coa_id' => 13],
             ['teks' => 'Pembelian Transfer:', 'coa_id' => 9],
         ]);
 
-        $biaya = $rows([
+        $biaya = $build([
             ['teks' => 'Biaya Gaji bulanan', 'coa_id' => 3],
             ['teks' => 'Biaya Marketing', 'coa_id' => 29],
             ['teks' => 'Bea Aktivasi yang dibagikan', 'coa_id' => 23],
