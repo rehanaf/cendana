@@ -132,26 +132,9 @@ class DatabaseSeeder extends Seeder
         $bca = Wallet::firstOrCreate(['name' => 'BCA'], ['balance' => 0]);
         $gopay = Wallet::firstOrCreate(['name' => 'GoPay'], ['balance' => 0]);
 
-        $coas = [];
-        $coaData = [
-            ['code' => '4-1000', 'name' => 'Pendapatan Jasa', 'type' => 'income', 'category' => 'pemasukan'],
-            ['code' => '4-2000', 'name' => 'Pendapatan Lain', 'type' => 'income', 'category' => 'pemasukan'],
-            ['code' => '5-1000', 'name' => 'Beban Gaji', 'type' => 'expense', 'category' => 'pengeluaran'],
-            ['code' => '5-2000', 'name' => 'Beban Operasional', 'type' => 'expense', 'category' => 'pengeluaran'],
-            ['code' => '5-3000', 'name' => 'Beban Transport', 'type' => 'expense', 'category' => 'pengeluaran'],
-            ['code' => '5-4000', 'name' => 'Beban Makanan', 'type' => 'expense', 'category' => 'pengeluaran'],
-            ['code' => '5-5000', 'name' => 'Beban Listrik & Internet', 'type' => 'expense', 'category' => 'pengeluaran'],
-            ['code' => '5-6000', 'name' => 'Pajak', 'type' => 'tax', 'category' => 'pengeluaran'],
-            ['code' => '1-1000', 'name' => 'Kas', 'type' => 'asset', 'category' => null],
-            ['code' => '1-2000', 'name' => 'Transfer Antar Dompet', 'type' => 'asset', 'category' => 'transfer'],
-            ['code' => '2-1000', 'name' => 'Utang Usaha', 'type' => 'liability', 'category' => null],
-        ];
-        foreach ($coaData as $c) {
-            $coas[$c['code']] = Coa::firstOrCreate(
-                ['code' => $c['code']],
-                ['name' => $c['name'], 'type' => $c['type'], 'category' => $c['category']],
-            );
-        }
+        $this->call(CoaSeeder::class);
+
+        $coas = Coa::all()->keyBy('code');
 
         if (Transaction::query()->count() === 0) {
             $transactions = [];
@@ -168,7 +151,7 @@ class DatabaseSeeder extends Seeder
                         'name' => 'Pendapatan Harian',
                         'user_id' => $admin->id,
                         'wallet_id' => $bri->id,
-                        'coa_id' => $coas['4-1000']->id,
+                        'coa_id' => $coas['40100']->id,
                         'amount' => rand(15, 50) * 100000,
                         'transaction_date' => $date->format('Y-m-d'),
                     ];
@@ -178,7 +161,7 @@ class DatabaseSeeder extends Seeder
                     'name' => 'Makan Siang',
                     'user_id' => $admin->id,
                     'wallet_id' => $tunai->id,
-                    'coa_id' => $coas['5-4000']->id,
+                    'coa_id' => $coas['60220']->id,
                     'amount' => rand(15, 50) * 1000,
                     'transaction_date' => $date->format('Y-m-d'),
                 ];
@@ -188,7 +171,7 @@ class DatabaseSeeder extends Seeder
                         'name' => 'Transportasi',
                         'user_id' => $admin->id,
                         'wallet_id' => $gopay->id,
-                        'coa_id' => $coas['5-3000']->id,
+                        'coa_id' => $coas['60300']->id,
                         'amount' => rand(20, 100) * 1000,
                         'transaction_date' => $date->format('Y-m-d'),
                     ];
@@ -199,7 +182,7 @@ class DatabaseSeeder extends Seeder
                         'name' => 'Belanja Bulanan',
                         'user_id' => $admin->id,
                         'wallet_id' => $gopay->id,
-                        'coa_id' => $coas['5-2000']->id,
+                        'coa_id' => $coas['60400']->id,
                         'amount' => rand(30, 75) * 10000,
                         'transaction_date' => $date->format('Y-m-d'),
                     ];
@@ -211,7 +194,7 @@ class DatabaseSeeder extends Seeder
                         'user_id' => $admin->id,
                         'wallet_id' => $gopay->id,
                         'to_wallet_id' => $bri->id,
-                        'coa_id' => $coas['1-2000']->id,
+                        'coa_id' => $coas['10201']->id,
                         'amount' => rand(50, 150) * 10000,
                         'transaction_date' => $date->format('Y-m-d'),
                     ];

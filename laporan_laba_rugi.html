@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Laba Rugi - Cendana Corp (A4)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            background-color: #ffffff !important;
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        /* Kontainer Lembar A4 (Polos Tanpa Shadow/Garis Pembatas) */
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm 20mm;
+            background-color: #ffffff;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        /* Wrapper konten di dalam margin kertas */
+        .report-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            background-color: #ffffff;
+        }
+
+        /* Tabel Utama Laporan */
+        .report-table {
+            border-collapse: collapse;
+            font-size: 13px;
+            color: #000;
+            width: 100%;
+            max-width: 620px;
+            background-color: #ffffff;
+        }
+
+        .report-table td, .report-table th {
+            padding: 2px 8px;
+            vertical-align: bottom;
+        }
+
+        /* Style Header Biru (Di dalam Bingkai Utama) */
+        .header-cell {
+            background-color: #12335b;
+            color: #ffffff;
+            text-align: center;
+            padding: 12px 10px !important;
+            font-weight: bold;
+            border-top: 1.5px solid #000;
+            border-left: 1.5px solid #000;
+            border-right: 1.5px solid #000;
+        }
+
+        .header-cell h1 {
+            margin: 0;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+
+        .header-cell h2 {
+            margin: 4px 0;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+        }
+
+        .header-cell p {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        /* Garis Bingkai Utama (Kotak Hitam) */
+        .box-left {
+            border-left: 1.5px solid #000;
+        }
+
+        .box-right {
+            border-right: 1.5px solid #000;
+        }
+
+        .box-bottom {
+            border-bottom: 1.5px solid #000;
+        }
+
+        /* Garis Vertikal Tengah & Horizontal Laporan */
+        .border-middle {
+            border-left: 1.5px solid #000;
+        }
+
+        .border-top {
+            border-top: 1px solid #000;
+        }
+
+        .border-bottom {
+            border-bottom: 1px solid #000;
+        }
+
+        /* Format Teks */
+        .text-right {
+            text-align: right;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .italic {
+            font-style: italic;
+        }
+
+        .section-header {
+            font-weight: bold;
+            text-decoration: underline;
+            padding-top: 8px;
+            padding-bottom: 2px;
+        }
+
+        .indent {
+            padding-left: 12px !important;
+        }
+
+        /* Lebar Kolom Presisi */
+        .col-detail {
+            width: 280px;
+        }
+
+        .col-subtotal {
+            width: 110px;
+        }
+
+        .col-amount {
+            width: 120px;
+        }
+
+        /* Kolom Persentase (Di Luar Bingkai Hitam Utama) */
+        .percentage-cell {
+            text-align: right;
+            padding-left: 15px !important;
+            white-space: nowrap;
+            width: 60px;
+        }
+
+        /* Baris Pemisah Kosong */
+        .spacer-row td {
+            height: 12px;
+        }
+
+        /* ATURAN CETAK A4 (PRINT MEDIA QUERY) */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+
+            html, body {
+                background-color: #ffffff !important;
+                padding: 0;
+                margin: 0;
+                display: block;
+            }
+
+            .page {
+                width: 210mm;
+                height: 297mm;
+                padding: 15mm 20mm;
+                box-shadow: none;
+                margin: 0;
+                outline: none;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                background-color: #ffffff;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- KONTAINER LEMBAR KERTA A4 -->
+    <div class="page">
+        <div class="report-container">
+            <table class="report-table">
+                <!-- HEADER BIRU (Di dalam bingkai 3 kolom pertama) -->
+                <thead>
+                    <tr>
+                        <th colspan="3" class="header-cell">
+                            <h1>CENDANA CORP</h1>
+                            <h2>LAPORAN LABA RUGI</h2>
+                            <p>PERIODE MEI 2026</p>
+                            <p>( DALAM RUPIAH )</p>
+                        </th>
+                        <!-- Kolom kosong di luar bingkai untuk area persentase -->
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Penjualan Section -->
+                    <tr>
+                        <td class="section-header box-left col-detail">Penjualan :</td>
+                        <td class="col-subtotal"></td>
+                        <td class="border-middle box-right col-amount"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Penjualan Rutin Corporate :</td>
+                        <td class="text-right">44,715,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Penjualan Rutin Retail :</td>
+                        <td class="text-right">25,168,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Pendapatan dari Piutang bulan sebelumnya</td>
+                        <td class="text-right">6,023,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Penjualan Pekerjaan Lain-Lain :</td>
+                        <td class="text-right">8,115,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="text-right bold box-left" colspan="2">Total Penjualan</td>
+                        <td class="text-right bold border-middle box-right border-top border-bottom">84,021,000</td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+
+                    <tr class="spacer-row">
+                        <td class="box-left" colspan="2"></td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+
+                    <!-- Pembelian Section -->
+                    <tr>
+                        <td class="section-header box-left">Pembelian :</td>
+                        <td></td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Belanja Internet</td>
+                        <td class="text-right">11,730,915</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Pembelian Cash:</td>
+                        <td class="text-right">2,276,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Pembelian Transfer:</td>
+                        <td class="text-right">9,107,371</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="text-right bold box-left" colspan="2">Total Pembelian</td>
+                        <td class="text-right bold border-middle box-right border-top border-bottom">23,114,286</td>
+                        <td class="percentage-cell">27.51%</td>
+                    </tr>
+
+                    <tr class="spacer-row">
+                        <td class="box-left" colspan="2"></td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+
+                    <!-- Biaya - Biaya Section -->
+                    <tr>
+                        <td class="section-header box-left">Biaya - Biaya</td>
+                        <td></td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Biaya Gaji bulanan</td>
+                        <td class="text-right">25,783,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">30.69%</td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Biaya Marketing</td>
+                        <td class="text-right">1,928,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">2.29%</td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Bea Aktivasi yang dibagikan</td>
+                        <td class="text-right">560,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">0.67%</td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Biaya Umum dan Administrasi</td>
+                        <td class="text-right">1,656,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">1.97%</td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Biaya Upah / Honor</td>
+                        <td class="text-right">400,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">0.48%</td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Biaya Air & Listrik</td>
+                        <td class="text-right">1,608,004</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">1.91%</td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Biaya Sosial</td>
+                        <td class="text-right">1,160,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">1.38%</td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Biaya Lain-Lain, ManMin</td>
+                        <td class="text-right">3,342,500</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">3.98%</td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Biaya Pajak</td>
+                        <td class="text-right">33,186</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">0.04%</td>
+                    </tr>
+                    <tr>
+                        <td class="indent box-left">Biaya BBM + Perawatan Kend</td>
+                        <td class="text-right border-bottom">5,096,000</td>
+                        <td class="border-middle box-right"></td>
+                        <td class="percentage-cell">6.07%</td>
+                    </tr>
+
+                    <!-- Total Biaya -->
+                    <tr>
+                        <td class="text-right bold italic box-left" colspan="2">Total Biaya :</td>
+                        <td class="text-right border-middle box-right border-bottom">41,566,690</td>
+                        <td class="percentage-cell">49.47%</td>
+                    </tr>
+
+                    <!-- Laba / Rugi Usaha Sebelum Pajak -->
+                    <tr>
+                        <td class="text-right bold box-left" colspan="2">LABA / RUGI USAHA SEBELUM PAJAK :</td>
+                        <td class="text-right bold border-middle box-right border-bottom">19,340,024</td>
+                        <td class="percentage-cell">23.02%</td>
+                    </tr>
+
+                    <!-- Area Kosong Bawah Bingkai Hitam -->
+                    <tr style="height: 50px;">
+                        <td class="box-left box-bottom" colspan="2"></td>
+                        <td class="border-middle box-right box-bottom"></td>
+                        <td class="percentage-cell"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</body>
+</html>

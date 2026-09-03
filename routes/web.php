@@ -32,6 +32,7 @@ Route::get('/invoice/template/{template}/preview', function (\App\Models\Invoice
     return view('invoice', ['invoice' => $invoice, 'template' => $template]);
 })->name('invoice.template.preview');
 Route::get('/invoice/{type}/{invoice}/preview', [InvoiceController::class, 'preview'])->name('invoice.preview');
+Route::get('/laporan/laba-rugi/cetak', 'App\Http\Controllers\LaporanController@cetakLabaRugi')->name('laporan.laba-rugi.cetak');
 Route::get('/test-invoice', function () {
     $invoice = (object) [
         'invoice_no' => 'TEST-202608-001',

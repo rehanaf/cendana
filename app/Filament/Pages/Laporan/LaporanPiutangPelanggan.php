@@ -88,22 +88,24 @@ class LaporanPiutangPelanggan extends Page implements HasTable
     {
         $rows = $this->getOutstandingQuery()->get();
 
+        $totalPiutang = $rows->sum(fn ($row): float => (float) $row->total);
         $totalSisa = $rows->sum(fn ($row): float => (float) $row->sisa_bayar);
         $sisaPenjualan = $rows->where('source', 'Penjualan')->sum(fn ($row): float => (float) $row->sisa_bayar);
         $sisaLangganan = $rows->where('source', 'Langganan')->sum(fn ($row): float => (float) $row->sisa_bayar);
         $sisaRetail = $rows->where('source', 'Retail')->sum(fn ($row): float => (float) $row->sisa_bayar);
 
-        return Grid::make(3)
+        return Grid::make(5)
             ->schema([
-                Stat::make('Total Piutang', 'Rp '.number_format($totalSisa, 0, ',', '.'))
+                Stat::make('Total Piutang', 'Rp '.number_format($totalPiutang, 0, ',', '.'))
+                    ->color($totalPiutang > 0 ? 'danger' : 'success'),
+                Stat::make('Total Tagihan', 'Rp '.number_format($totalSisa, 0, ',', '.'))
                     ->color($totalSisa > 0 ? 'danger' : 'success'),
-                Stat::make('Piutang Penjualan Project / Umum', 'Rp '.number_format($sisaPenjualan, 0, ',', '.'))
+                Stat::make('Piutang Penj. Lain-Lain', 'Rp '.number_format($sisaPenjualan, 0, ',', '.'))
                     ->color($sisaPenjualan > 0 ? 'danger' : 'success'),
-                Stat::make('Piutang Langganan Corporate', 'Rp '.number_format($sisaLangganan, 0, ',', '.'))
+                Stat::make('Piutang Penj Corporate Bulanan', 'Rp '.number_format($sisaLangganan, 0, ',', '.'))
                     ->color($sisaLangganan > 0 ? 'danger' : 'success'),
-                Stat::make('Piutang Langganan Retail', 'Rp '.number_format($sisaRetail, 0, ',', '.'))
+                Stat::make('Piutang Penj. Retail Bulanan', 'Rp '.number_format($sisaRetail, 0, ',', '.'))
                     ->color($sisaRetail > 0 ? 'danger' : 'success'),
-                Stat::make('Jumlah Tagihan', (string) $rows->count()),
             ]);
     }
 

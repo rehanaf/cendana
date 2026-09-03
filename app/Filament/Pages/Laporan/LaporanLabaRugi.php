@@ -3,6 +3,7 @@
 namespace App\Filament\Pages\Laporan;
 
 use App\Models\Transaction;
+use Filament\Actions\Action;
 use Filament\Schemas\Components\Grid;
 use Filament\Tables\Columns\TextColumn;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,32 @@ class LaporanLabaRugi extends BaseReportPage
     public static function reportLabel(): string
     {
         return 'Laba Rugi';
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('cetak')
+                ->label('Cetak')
+                ->icon('heroicon-o-printer')
+                ->color('primary')
+                ->url(fn (): string => route('laporan.laba-rugi.cetak', [
+                    'month' => $this->reportMonth ?: now()->format('m'),
+                    'year' => $this->reportYear ?: now()->format('Y'),
+                    'print' => 1,
+                ]))
+                ->openUrlInNewTab(),
+            Action::make('preview')
+                ->label('Preview Contoh')
+                ->icon('heroicon-o-eye')
+                ->color('gray')
+                ->url(fn (): string => route('laporan.laba-rugi.cetak', [
+                    'month' => $this->reportMonth ?: now()->format('m'),
+                    'year' => $this->reportYear ?: now()->format('Y'),
+                    'preview' => 1,
+                ]))
+                ->openUrlInNewTab(),
+        ];
     }
 
     public static function getReportSlug(): string
