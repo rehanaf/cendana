@@ -27,6 +27,7 @@ class LaporanKeuangan extends Page implements HasTable
 
     public ?string $date = null;
     public ?string $walletId = '';
+    public ?string $coaType = '';
     public ?string $reportMonth = null;
     public ?string $reportYear = null;
 
@@ -67,7 +68,8 @@ class LaporanKeuangan extends Page implements HasTable
     {
         return $schema
             ->components([
-                Section::make('Ringkasan Bulanan')
+                Section::make('Ringkasan Keuangan Bulanan Berdasarkan COA')
+                    ->description('Rincian kinerja operasional dan mutasi kas berdasarkan Chart of Accounts (COA)')
                     ->afterHeader([
                         Select::make('reportMonth')
                             ->hiddenLabel()
@@ -104,8 +106,24 @@ class LaporanKeuangan extends Page implements HasTable
                                 'key' => 'coa-chart',
                             ]),
                     ]),
-                Section::make('Laporan Harian')
+                Section::make('Rincian Transaksi Sesuai COA')
+                    ->description('Daftar jurnal mutasi per tanggal, dompet, dan klasifikasi akun COA')
                     ->afterHeader([
+                        Select::make('coaType')
+                            ->hiddenLabel()
+                            ->native(true)
+                            ->options([
+                                '' => 'Semua Tipe COA',
+                                'income' => 'Pendapatan',
+                                'cogs' => 'HPP / Pembelian',
+                                'expense' => 'Beban Operasional',
+                                'tax' => 'Pajak',
+                                'asset' => 'Aset',
+                                'liability' => 'Kewajiban',
+                                'equity' => 'Modal',
+                            ])
+                            ->live()
+                            ->afterStateUpdated(fn () => $this->dispatch('refresh-table')),
                         Select::make('walletId')
                             ->hiddenLabel()
                             ->native(true)
@@ -140,41 +158,50 @@ class LaporanKeuangan extends Page implements HasTable
             ->whereYear('transaction_date', $year)
             ->whereMonth('transaction_date', $month);
 
-        $income = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('category', 'pemasukan'))->sum('amount');
-        $expense = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('category', 'pengeluaran'))->sum('amount');
-        $net = $income - $expense;
-        $count = (clone $query)->count();
+        $income = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'income'))->sum('amount');
+        $cogs = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'cogs'))->sum('amount');
+        $expense = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'expense'))->sum('amount');
+        $tax = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'tax'))->sum('amount');
+        $labaOperasional = $income - $cogs - $expense - $tax;
 
-        $prevDate = \Carbon\Carbon::create($year, $month)->subMonth();
-        $prevQuery = Transaction::query()
-            ->whereYear('transaction_date', $prevDate->year)
-            ->whereMonth('transaction_date', $prevDate->month);
+        $asset = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'asset')->where('category', 'pengeluaran'))->sum('amount');
+        $liability = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'liability')->where('category', 'pengeluaran'))->sum('amount');
+        $equity = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'equity')->where('category', 'pengeluaran'))->sum('amount');
 
-        $prevIncome = (float) (clone $prevQuery)->whereHas('coa', fn ($q) => $q->where('category', 'pemasukan'))->sum('amount');
-        $prevExpense = (float) (clone $prevQuery)->whereHas('coa', fn ($q) => $q->where('category', 'pengeluaran'))->sum('amount');
-        $prevNet = $prevIncome - $prevExpense;
-
-        $diffIncome = $prevIncome > 0 ? round(($income - $prevIncome) / $prevIncome * 100) : ($income > 0 ? 100 : 0);
-        $diffExpense = $prevExpense > 0 ? round(($expense - $prevExpense) / $prevExpense * 100) : ($expense > 0 ? 100 : 0);
-        $diffNet = $prevNet > 0 ? round(($net - $prevNet) / $prevNet * 100) : ($net > 0 ? 100 : ($net < 0 ? -100 : 0));
-
-        return Grid::make(3)
+        return Grid::make(['default' => 2, 'sm' => 2, 'md' => 4, 'lg' => 4])
             ->schema([
-                Stat::make('Pemasukan', 'Rp ' . number_format($income, 0, ',', '.'))
-                    ->description(($diffIncome >= 0 ? 'Naik ' : 'Turun ') . abs($diffIncome) . '%')
-                    ->descriptionIcon($diffIncome >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
-                    ->descriptionColor($diffIncome >= 0 ? 'success' : 'danger'),
-                Stat::make('Pengeluaran', 'Rp ' . number_format($expense, 0, ',', '.'))
-                    ->description(($diffExpense >= 0 ? 'Naik ' : 'Turun ') . abs($diffExpense) . '%')
-                    ->descriptionIcon($diffExpense >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
-                    ->descriptionColor($diffExpense >= 0 ? 'danger' : 'success'),
-                Stat::make('Selisih', 'Rp ' . number_format($net, 0, ',', '.'))
-                    ->description(($diffNet >= 0 ? 'Naik ' : 'Turun ') . abs($diffNet) . '%')
-                    ->descriptionIcon($diffNet >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
-                    ->descriptionColor($diffNet >= 0 ? 'success' : 'danger'),
-                Stat::make('Jumlah Transaksi', (string) $count),
-                Stat::make('Rata-rata Pemasukan', 'Rp ' . number_format($count > 0 ? $income / $count : 0, 0, ',', '.')),
-                Stat::make('Rata-rata Pengeluaran', 'Rp ' . number_format($count > 0 ? $expense / $count : 0, 0, ',', '.')),
+                Stat::make('Pendapatan Usaha', 'Rp ' . number_format($income, 0, ',', '.'))
+                    ->description('Tipe: income')
+                    ->descriptionIcon('heroicon-m-arrow-trending-up')
+                    ->color('success'),
+                Stat::make('HPP / Pembelian', 'Rp ' . number_format($cogs, 0, ',', '.'))
+                    ->description('Tipe: cogs')
+                    ->descriptionIcon('heroicon-m-shopping-bag')
+                    ->color('warning'),
+                Stat::make('Beban Operasional', 'Rp ' . number_format($expense, 0, ',', '.'))
+                    ->description('Tipe: expense')
+                    ->descriptionIcon('heroicon-m-arrow-trending-down')
+                    ->color('danger'),
+                Stat::make('Beban Pajak', 'Rp ' . number_format($tax, 0, ',', '.'))
+                    ->description('Tipe: tax')
+                    ->descriptionIcon('heroicon-m-receipt-percent')
+                    ->color('danger'),
+                Stat::make('Laba Bersih Operasional', 'Rp ' . number_format($labaOperasional, 0, ',', '.'))
+                    ->description('Pendapatan - HPP - Beban - Pajak')
+                    ->descriptionIcon($labaOperasional >= 0 ? 'heroicon-m-check-circle' : 'heroicon-m-exclamation-triangle')
+                    ->color($labaOperasional >= 0 ? 'success' : 'danger'),
+                Stat::make('Pengeluaran Aset', 'Rp ' . number_format($asset, 0, ',', '.'))
+                    ->description('Tipe: asset (Peralatan, dll)')
+                    ->descriptionIcon('heroicon-m-building-office')
+                    ->color('info'),
+                Stat::make('Pembayaran Utang', 'Rp ' . number_format($liability, 0, ',', '.'))
+                    ->description('Tipe: liability')
+                    ->descriptionIcon('heroicon-m-banknotes')
+                    ->color('warning'),
+                Stat::make('Prive / Modal', 'Rp ' . number_format($equity, 0, ',', '.'))
+                    ->description('Tipe: equity')
+                    ->descriptionIcon('heroicon-m-user')
+                    ->color('gray'),
             ]);
     }
 
@@ -182,42 +209,37 @@ class LaporanKeuangan extends Page implements HasTable
     {
         $date = $this->date ?? now()->format('Y-m-d');
         $walletId = $this->walletId ? (int) $this->walletId : null;
+        $coaType = $this->coaType ? $this->coaType : null;
 
         $query = Transaction::query()
             ->when($walletId, fn ($q) => $q->where('wallet_id', $walletId))
-            ->when($date, fn ($q) => $q->whereDate('transaction_date', $date));
+            ->when($date, fn ($q) => $q->whereDate('transaction_date', $date))
+            ->when($coaType, fn ($q) => $q->whereHas('coa', fn ($cq) => $cq->where('type', $coaType)));
 
-        $income = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('category', 'pemasukan'))->sum('amount');
-        $expense = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('category', 'pengeluaran'))->sum('amount');
-        $net = $income - $expense;
-
-        $prevDate = \Carbon\Carbon::parse($date)->subDay()->format('Y-m-d');
-        $prevQuery = Transaction::query()
-            ->when($walletId, fn ($q) => $q->where('wallet_id', $walletId))
-            ->when($prevDate, fn ($q) => $q->whereDate('transaction_date', $prevDate));
-
-        $prevIncome = (float) (clone $prevQuery)->whereHas('coa', fn ($q) => $q->where('category', 'pemasukan'))->sum('amount');
-        $prevExpense = (float) (clone $prevQuery)->whereHas('coa', fn ($q) => $q->where('category', 'pengeluaran'))->sum('amount');
-
-        $diffIncome = $prevIncome > 0 ? round(($income - $prevIncome) / $prevIncome * 100) : ($income > 0 ? 100 : 0);
-        $diffExpense = $prevExpense > 0 ? round(($expense - $prevExpense) / $prevExpense * 100) : ($expense > 0 ? 100 : 0);
+        $income = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'income'))->sum('amount');
+        $cogs = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'cogs'))->sum('amount');
+        $expense = (float) (clone $query)->whereHas('coa', fn ($q) => $q->whereIn('type', ['expense', 'tax']))->sum('amount');
 
         $saldoAwal = $this->getSaldo($date, $walletId, before: true);
         $saldoAkhir = $this->getSaldo($date, $walletId, before: false);
 
-        return Grid::make(3)
+        return Grid::make(['default' => 2, 'sm' => 3, 'lg' => 5])
             ->schema([
-                Stat::make('Pemasukan', 'Rp ' . number_format($income, 0, ',', '.'))
-                    ->description(($diffIncome >= 0 ? 'Naik ' : 'Turun ') . abs($diffIncome) . '%')
-                    ->descriptionIcon($diffIncome >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
-                    ->descriptionColor($diffIncome >= 0 ? 'success' : 'danger'),
-                Stat::make('Pengeluaran', 'Rp ' . number_format($expense, 0, ',', '.'))
-                    ->description(($diffExpense >= 0 ? 'Naik ' : 'Turun ') . abs($diffExpense) . '%')
-                    ->descriptionIcon($diffExpense >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
-                    ->descriptionColor($diffExpense >= 0 ? 'danger' : 'success'),
-                Stat::make('Selisih', 'Rp ' . number_format($net, 0, ',', '.')),
-                Stat::make('Saldo Awal', 'Rp ' . number_format($saldoAwal, 0, ',', '.')),
-                Stat::make('Saldo Akhir', 'Rp ' . number_format($saldoAkhir, 0, ',', '.')),
+                Stat::make('Pendapatan', 'Rp ' . number_format($income, 0, ',', '.'))
+                    ->description('COA: Pendapatan')
+                    ->color('success'),
+                Stat::make('HPP / Pembelian', 'Rp ' . number_format($cogs, 0, ',', '.'))
+                    ->description('COA: HPP / Pembelian')
+                    ->color('warning'),
+                Stat::make('Beban & Pajak', 'Rp ' . number_format($expense, 0, ',', '.'))
+                    ->description('COA: Beban & Pajak')
+                    ->color('danger'),
+                Stat::make('Saldo Awal Dompet', 'Rp ' . number_format($saldoAwal, 0, ',', '.'))
+                    ->description('Posisi awal hari')
+                    ->color('info'),
+                Stat::make('Saldo Akhir Dompet', 'Rp ' . number_format($saldoAkhir, 0, ',', '.'))
+                    ->description('Posisi akhir hari')
+                    ->color('success'),
             ]);
     }
 
@@ -251,39 +273,34 @@ class LaporanKeuangan extends Page implements HasTable
     {
         return $this->makeBaseTable()
             ->query(fn () => Transaction::query()
+                ->with(['coa', 'wallet'])
                 ->when($this->date, fn ($q) => $q->whereDate('transaction_date', $this->date))
                 ->when($this->walletId, fn ($q) => $q->where(function ($q) {
                     $q->where('wallet_id', (int) $this->walletId)
                         ->orWhere('to_wallet_id', (int) $this->walletId);
                 }))
+                ->when($this->coaType, fn ($q) => $q->whereHas('coa', fn ($cq) => $cq->where('type', $this->coaType)))
             )
             ->columns([
-                TextColumn::make('coa.code')
-                    ->label('Kode')
-                    ->searchable(),
-                TextColumn::make('coa.name')
-                    ->label('Nama')
-                    ->searchable(),
-                TextColumn::make('description')
-                    ->label('Keterangan')
-                    ->limit(30),
-                TextColumn::make('coa.category')
-                    ->label('Kategori')
+                TextColumn::make('transaction_date')
+                    ->label('Tanggal')
+                    ->date('d/m/Y')
+                    ->sortable(),
+                TextColumn::make('wallet.name')
+                    ->label('Dompet')
                     ->badge()
-                    ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        'pemasukan' => 'Pemasukan',
-                        'pengeluaran' => 'Pengeluaran',
-                        'transfer' => 'Transfer',
-                        default => '-',
-                    })
-                    ->color(fn (?string $state): string => match ($state) {
-                        'pemasukan' => 'success',
-                        'pengeluaran' => 'danger',
-                        'transfer' => 'warning',
-                        default => 'gray',
-                    }),
+                    ->color('gray')
+                    ->searchable(),
+                TextColumn::make('coa.code')
+                    ->label('Kode COA')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('coa.name')
+                    ->label('Nama Akun COA')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('coa.type')
-                    ->label('Tipe')
+                    ->label('Tipe COA')
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => match ($state) {
                         'asset' => 'Aset',
@@ -305,6 +322,25 @@ class LaporanKeuangan extends Page implements HasTable
                         'tax' => 'danger',
                         default => 'gray',
                     }),
+                TextColumn::make('coa.category')
+                    ->label('Arus Kas')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'pemasukan' => 'Kas Masuk',
+                        'pengeluaran' => 'Kas Keluar',
+                        'transfer' => 'Transfer',
+                        default => '-',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'pemasukan' => 'success',
+                        'pengeluaran' => 'danger',
+                        'transfer' => 'warning',
+                        default => 'gray',
+                    }),
+                TextColumn::make('description')
+                    ->label('Keterangan')
+                    ->limit(35)
+                    ->searchable(),
                 TextColumn::make('amount')
                     ->label('Jumlah')
                     ->money('IDR', decimalPlaces: 0)
@@ -313,7 +349,8 @@ class LaporanKeuangan extends Page implements HasTable
                         'pengeluaran' => 'danger',
                         'transfer' => 'warning',
                         default => 'gray',
-                    }),
+                    })
+                    ->sortable(),
             ])
             ->defaultSort('transaction_date', 'desc');
     }
