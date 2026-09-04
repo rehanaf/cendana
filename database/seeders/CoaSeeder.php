@@ -39,7 +39,7 @@ class CoaSeeder extends Seeder
             [27, '60310', 'Service Kendaraan', 'expense', 'pengeluaran', 1],
             [28, '60400', 'Iklan', 'expense', 'pengeluaran', 1],
             [29, '60410', 'Marketing Freelance', 'expense', 'pengeluaran', 1],
-            [30, '60500', 'Bandwith Internet', 'expense', 'pengeluaran', 1],
+            [30, '60500', 'Bandwith Internet', 'cogs', 'pengeluaran', 1],
             [31, '60510', 'Maintenance Jaringan Internal', 'expense', 'pengeluaran', 1],
             [32, '60600', 'Perawatan Kantor', 'expense', 'pengeluaran', 1],
             [33, '60620', 'Software Berlangganan', 'expense', 'pengeluaran', 1],

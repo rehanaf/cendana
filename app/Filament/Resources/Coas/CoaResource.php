@@ -92,6 +92,7 @@ class CoaResource extends Resource
                         'liability' => 'Kewajiban',
                         'equity' => 'Modal',
                         'income' => 'Pendapatan',
+                        'cogs' => 'HPP / Pembelian',
                         'expense' => 'Beban',
                         'tax' => 'Pajak',
                     ])
@@ -100,7 +101,7 @@ class CoaResource extends Resource
                     ->afterStateUpdated(function (Get $get, Set $set) {
                         $category = match ($get('type')) {
                             'income' => 'pemasukan',
-                            'expense', 'tax' => 'pengeluaran',
+                            'cogs', 'expense', 'tax' => 'pengeluaran',
                             default => null,
                         };
                         if ($category) {
@@ -156,6 +157,7 @@ class CoaResource extends Resource
                         'liability' => 'Kewajiban',
                         'equity' => 'Modal',
                         'income' => 'Pendapatan',
+                        'cogs' => 'HPP / Pembelian',
                         'expense' => 'Beban',
                         'tax' => 'Pajak',
                         default => $state,
@@ -163,10 +165,11 @@ class CoaResource extends Resource
                     ->color(fn (string $state): string => match ($state) {
                         'asset' => 'info',
                         'liability' => 'warning',
-                        'equity' => 'success',
+                        'equity' => 'gray',
                         'income' => 'success',
+                        'cogs' => 'warning',
                         'expense' => 'danger',
-                        'tax' => 'info',
+                        'tax' => 'danger',
                         default => 'gray',
                     }),
                 ToggleColumn::make('is_active')

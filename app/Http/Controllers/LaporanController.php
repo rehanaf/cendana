@@ -43,50 +43,31 @@ class LaporanController extends Controller
 
     protected function realSections(int $month, int $year): Collection
     {
-        $build = function (array $defs) use ($month, $year): Collection {
-            return collect($defs)->map(function (array $def) use ($month, $year): array {
-                $jumlah = (float) Coa::query()
-                    ->whereKey($def['coa_id'])
-                    ->where('is_active', true)
-                    ->first()
-                    ?->transactions()
-                    ->whereYear('transaction_date', $year)
-                    ->whereMonth('transaction_date', $month)
-                    ->sum('amount') ?? 0;
+        $build = function (array|string $types) use ($month, $year): Collection {
+            $types = (array) $types;
 
-                return [
-                    'nama' => $def['teks'],
-                    'jumlah' => $jumlah,
-                    'jumlah_text' => number_format($jumlah, 0, '.', ','),
-                ];
-            })->values();
+            return Coa::query()
+                ->whereIn('type', $types)
+                ->where('is_active', true)
+                ->orderBy('code')
+                ->get()
+                ->map(function (Coa $coa) use ($month, $year): array {
+                    $jumlah = (float) $coa->transactions()
+                        ->whereYear('transaction_date', $year)
+                        ->whereMonth('transaction_date', $month)
+                        ->sum('amount');
+
+                    return [
+                        'nama' => $coa->name,
+                        'jumlah' => $jumlah,
+                        'jumlah_text' => number_format($jumlah, 0, '.', ','),
+                    ];
+                });
         };
 
-        $penjualan = $build([
-            ['teks' => 'Penjualan Rutin Corporate :', 'coa_id' => 19],
-            ['teks' => 'Penjualan Rutin Retail :', 'coa_id' => 18],
-            ['teks' => 'Pendapatan dari Piutang bulan sebelumnya', 'coa_id' => 20],
-            ['teks' => 'Penjualan Pekerjaan Lain-Lain :', 'coa_id' => 22],
-        ]);
-
-        $pembelian = $build([
-            ['teks' => 'Belanja Internet', 'coa_id' => 30],
-            ['teks' => 'Pembelian Cash:', 'coa_id' => 13],
-            ['teks' => 'Pembelian Transfer:', 'coa_id' => 9],
-        ]);
-
-        $biaya = $build([
-            ['teks' => 'Biaya Gaji bulanan', 'coa_id' => 3],
-            ['teks' => 'Biaya Marketing', 'coa_id' => 29],
-            ['teks' => 'Bea Aktivasi yang dibagikan', 'coa_id' => 23],
-            ['teks' => 'Biaya Umum dan Administrasi', 'coa_id' => 26],
-            ['teks' => 'Biaya Upah / Honor', 'coa_id' => 42],
-            ['teks' => 'Biaya Air & Listrik', 'coa_id' => 24],
-            ['teks' => 'Biaya Sosial', 'coa_id' => 44],
-            ['teks' => 'Biaya Lain-Lain, ManMin', 'coa_id' => 6],
-            ['teks' => 'Biaya Pajak', 'coa_id' => 34],
-            ['teks' => 'Biaya BBM + Perawatan Kend', 'coa_id' => 5],
-        ]);
+        $penjualan = $build('income');
+        $pembelian = $build('cogs');
+        $biaya = $build(['expense', 'tax']);
 
         return collect([
             $this->makeSection('Penjualan :', 'Total Penjualan', $penjualan),
