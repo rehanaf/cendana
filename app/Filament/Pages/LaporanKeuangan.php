@@ -68,8 +68,7 @@ class LaporanKeuangan extends Page implements HasTable
     {
         return $schema
             ->components([
-                Section::make('Ringkasan Keuangan Bulanan Berdasarkan COA')
-                    ->description('Rincian kinerja operasional dan mutasi kas berdasarkan Chart of Accounts (COA)')
+                Section::make('Ringkasan Bulanan')
                     ->afterHeader([
                         Select::make('reportMonth')
                             ->hiddenLabel()
@@ -106,14 +105,13 @@ class LaporanKeuangan extends Page implements HasTable
                                 'key' => 'coa-chart',
                             ]),
                     ]),
-                Section::make('Rincian Transaksi Sesuai COA')
-                    ->description('Daftar jurnal mutasi per tanggal, dompet, dan klasifikasi akun COA')
+                Section::make('Laporan Harian')
                     ->afterHeader([
                         Select::make('coaType')
                             ->hiddenLabel()
                             ->native(true)
                             ->options([
-                                '' => 'Semua Tipe COA',
+                                '' => 'Semua Tipe',
                                 'income' => 'Pendapatan',
                                 'cogs' => 'HPP / Pembelian',
                                 'expense' => 'Beban Operasional',
@@ -171,36 +169,20 @@ class LaporanKeuangan extends Page implements HasTable
         return Grid::make(['default' => 2, 'sm' => 2, 'md' => 4, 'lg' => 4])
             ->schema([
                 Stat::make('Pendapatan Usaha', 'Rp ' . number_format($income, 0, ',', '.'))
-                    ->description('Tipe: income')
-                    ->descriptionIcon('heroicon-m-arrow-trending-up')
                     ->color('success'),
                 Stat::make('HPP / Pembelian', 'Rp ' . number_format($cogs, 0, ',', '.'))
-                    ->description('Tipe: cogs')
-                    ->descriptionIcon('heroicon-m-shopping-bag')
                     ->color('warning'),
                 Stat::make('Beban Operasional', 'Rp ' . number_format($expense, 0, ',', '.'))
-                    ->description('Tipe: expense')
-                    ->descriptionIcon('heroicon-m-arrow-trending-down')
                     ->color('danger'),
                 Stat::make('Beban Pajak', 'Rp ' . number_format($tax, 0, ',', '.'))
-                    ->description('Tipe: tax')
-                    ->descriptionIcon('heroicon-m-receipt-percent')
                     ->color('danger'),
                 Stat::make('Laba Bersih Operasional', 'Rp ' . number_format($labaOperasional, 0, ',', '.'))
-                    ->description('Pendapatan - HPP - Beban - Pajak')
-                    ->descriptionIcon($labaOperasional >= 0 ? 'heroicon-m-check-circle' : 'heroicon-m-exclamation-triangle')
                     ->color($labaOperasional >= 0 ? 'success' : 'danger'),
                 Stat::make('Pengeluaran Aset', 'Rp ' . number_format($asset, 0, ',', '.'))
-                    ->description('Tipe: asset (Peralatan, dll)')
-                    ->descriptionIcon('heroicon-m-building-office')
                     ->color('info'),
                 Stat::make('Pembayaran Utang', 'Rp ' . number_format($liability, 0, ',', '.'))
-                    ->description('Tipe: liability')
-                    ->descriptionIcon('heroicon-m-banknotes')
                     ->color('warning'),
                 Stat::make('Prive / Modal', 'Rp ' . number_format($equity, 0, ',', '.'))
-                    ->description('Tipe: equity')
-                    ->descriptionIcon('heroicon-m-user')
                     ->color('gray'),
             ]);
     }
@@ -226,19 +208,14 @@ class LaporanKeuangan extends Page implements HasTable
         return Grid::make(['default' => 2, 'sm' => 3, 'lg' => 5])
             ->schema([
                 Stat::make('Pendapatan', 'Rp ' . number_format($income, 0, ',', '.'))
-                    ->description('COA: Pendapatan')
                     ->color('success'),
                 Stat::make('HPP / Pembelian', 'Rp ' . number_format($cogs, 0, ',', '.'))
-                    ->description('COA: HPP / Pembelian')
                     ->color('warning'),
                 Stat::make('Beban & Pajak', 'Rp ' . number_format($expense, 0, ',', '.'))
-                    ->description('COA: Beban & Pajak')
                     ->color('danger'),
-                Stat::make('Saldo Awal Dompet', 'Rp ' . number_format($saldoAwal, 0, ',', '.'))
-                    ->description('Posisi awal hari')
+                Stat::make('Saldo Awal', 'Rp ' . number_format($saldoAwal, 0, ',', '.'))
                     ->color('info'),
-                Stat::make('Saldo Akhir Dompet', 'Rp ' . number_format($saldoAkhir, 0, ',', '.'))
-                    ->description('Posisi akhir hari')
+                Stat::make('Saldo Akhir', 'Rp ' . number_format($saldoAkhir, 0, ',', '.'))
                     ->color('success'),
             ]);
     }
