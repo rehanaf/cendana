@@ -54,13 +54,15 @@ class LaporanLabaRugi extends BaseReportPage
     public function getStatsGrid(): Grid
     {
         $income = (float) $this->incomeQuery()->sum('t.amount');
+        $cogs = (float) $this->cogsQuery()->sum('t.amount');
         $expense = (float) $this->expenseQuery()->sum('t.amount');
-        $laba = $income - $expense;
+        $laba = $income - $cogs - $expense;
 
-        return Grid::make(3)
+        return Grid::make(4)
             ->schema([
                 $this->stat('Pendapatan', $income, 'success'),
-                $this->stat('Beban', $expense, 'danger'),
+                $this->stat('HPP / Pembelian', $cogs, 'warning'),
+                $this->stat('Beban & Pajak', $expense, 'danger'),
                 $this->stat('Laba / Rugi', $laba, $laba >= 0 ? 'success' : 'danger'),
             ]);
     }
@@ -70,7 +72,22 @@ class LaporanLabaRugi extends BaseReportPage
         return Transaction::query()
             ->from('transactions as t')
             ->join('coas as c', 'c.id', '=', 't.coa_id')
-            ->where('c.category', 'pemasukan')
+            ->where('c.type', 'income')
+            ->when($this->mode === 'harian' && $this->date, fn ($q) => $q->whereDate('t.transaction_date', $this->date))
+            ->when($this->mode === 'bulanan', fn ($q) => $q
+                ->whereYear('t.transaction_date', (int) $this->reportYear)
+                ->whereMonth('t.transaction_date', (int) $this->reportMonth))
+            ->when($this->mode === 'periode' && $this->periodStart && $this->periodEnd, fn ($q) => $q
+                ->whereDate('t.transaction_date', '>=', $this->periodStart)
+                ->whereDate('t.transaction_date', '<=', $this->periodEnd));
+    }
+
+    protected function cogsQuery()
+    {
+        return Transaction::query()
+            ->from('transactions as t')
+            ->join('coas as c', 'c.id', '=', 't.coa_id')
+            ->where('c.type', 'cogs')
             ->when($this->mode === 'harian' && $this->date, fn ($q) => $q->whereDate('t.transaction_date', $this->date))
             ->when($this->mode === 'bulanan', fn ($q) => $q
                 ->whereYear('t.transaction_date', (int) $this->reportYear)
@@ -85,7 +102,7 @@ class LaporanLabaRugi extends BaseReportPage
         return Transaction::query()
             ->from('transactions as t')
             ->join('coas as c', 'c.id', '=', 't.coa_id')
-            ->where('c.category', 'pengeluaran')
+            ->whereIn('c.type', ['expense', 'tax'])
             ->when($this->mode === 'harian' && $this->date, fn ($q) => $q->whereDate('t.transaction_date', $this->date))
             ->when($this->mode === 'bulanan', fn ($q) => $q
                 ->whereYear('t.transaction_date', (int) $this->reportYear)
@@ -100,14 +117,14 @@ class LaporanLabaRugi extends BaseReportPage
         $query = Transaction::query()
             ->from('transactions as t')
             ->join('coas as c', 'c.id', '=', 't.coa_id')
-            ->whereIn('c.category', ['pemasukan', 'pengeluaran'])
+            ->whereIn('c.type', ['income', 'cogs', 'expense', 'tax'])
             ->select([
                 'c.code as kode',
                 'c.name as nama',
-                'c.category as kategori',
+                'c.type as tipe',
                 DB::raw('SUM(t.amount) as jumlah'),
             ])
-            ->groupBy('c.id', 'c.code', 'c.name', 'c.category')
+            ->groupBy('c.id', 'c.code', 'c.name', 'c.type')
             ->orderBy('c.code');
 
         $query = $this->applyModeFilter($query, 't.transaction_date');
@@ -126,15 +143,27 @@ class LaporanLabaRugi extends BaseReportPage
                 ->label('Akun')
                 ->searchable()
                 ->sortable(),
-            TextColumn::make('kategori')
-                ->label('Jenis')
+            TextColumn::make('tipe')
+                ->label('Kelompok')
                 ->badge()
-                ->formatStateUsing(fn (string $state): string => $state === 'pemasukan' ? 'Pendapatan' : 'Beban')
-                ->color(fn (string $state): string => $state === 'pemasukan' ? 'success' : 'danger'),
+                ->formatStateUsing(fn (string $state): string => match ($state) {
+                    'income' => 'Pendapatan',
+                    'cogs' => 'HPP / Pembelian',
+                    'expense' => 'Beban',
+                    'tax' => 'Pajak',
+                    default => $state,
+                })
+                ->color(fn (string $state): string => match ($state) {
+                    'income' => 'success',
+                    'cogs' => 'warning',
+                    'expense' => 'danger',
+                    'tax' => 'danger',
+                    default => 'gray',
+                }),
             TextColumn::make('jumlah')
                 ->label('Jumlah')
                 ->formatStateUsing(fn ($state): string => $this->money((float) $state))
-                ->color(fn ($record): string => $record->kategori === 'pemasukan' ? 'success' : 'danger')
+                ->color(fn ($record): string => $record->tipe === 'income' ? 'success' : 'danger')
                 ->sortable(),
         ];
     }

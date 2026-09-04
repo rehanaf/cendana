@@ -290,6 +290,7 @@ class LaporanKeuangan extends Page implements HasTable
                         'liability' => 'Kewajiban',
                         'equity' => 'Modal',
                         'income' => 'Pendapatan',
+                        'cogs' => 'HPP / Pembelian',
                         'expense' => 'Beban',
                         'tax' => 'Pajak',
                         default => $state ?? '-',
@@ -299,8 +300,9 @@ class LaporanKeuangan extends Page implements HasTable
                         'liability' => 'warning',
                         'equity' => 'success',
                         'income' => 'success',
+                        'cogs' => 'warning',
                         'expense' => 'danger',
-                        'tax' => 'info',
+                        'tax' => 'danger',
                         default => 'gray',
                     }),
                 TextColumn::make('amount')

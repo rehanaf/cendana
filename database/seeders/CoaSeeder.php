@@ -26,7 +26,7 @@ class CoaSeeder extends Seeder
             [14, '12300', 'Peralatan Kantor', 'asset', 'pengeluaran', 1],
             [15, '12400', 'Komputer & Laptop', 'asset', 'pengeluaran', 1],
             [16, '12500', 'Peralatan Jaringan', 'asset', 'pengeluaran', 1],
-            [17, '30300', 'Prive', 'expense', 'pengeluaran', 1],
+            [17, '30300', 'Prive', 'equity', 'pengeluaran', 1],
             [18, '40100', 'Pendapatan Kontrak Retail Bulanan', 'income', 'pemasukan', 1],
             [19, '40200', 'Pendapatan Kontrak Corporate Bulanan', 'income', 'pemasukan', 1],
             [20, '40300', 'Pendapatan CS Komputer( (Umum & Lain-lain)', 'income', 'pemasukan', 1],
