@@ -30,11 +30,13 @@ class LaporanArusKas extends BaseReportPage
 
         $masuk = $rows->sum(fn ($r) => (float) $r->masuk);
         $keluar = $rows->sum(fn ($r) => (float) $r->keluar);
+        $transfer = $rows->sum(fn ($r) => (float) $r->transfer);
 
-        return Grid::make(3)
+        return Grid::make(4)
             ->schema([
                 $this->stat('Kas Masuk', $masuk, 'success'),
                 $this->stat('Kas Keluar', $keluar, 'danger'),
+                $this->stat('Transfer Kas', $transfer, 'warning'),
                 $this->stat('Arus Kas Bersih', $masuk - $keluar, $masuk - $keluar >= 0 ? 'success' : 'danger'),
             ]);
     }
@@ -44,12 +46,13 @@ class LaporanArusKas extends BaseReportPage
         $query = Transaction::query()
             ->from('transactions as t')
             ->join('coas as c', 'c.id', '=', 't.coa_id')
-            ->whereIn('c.category', ['pemasukan', 'pengeluaran'])
+            ->whereIn('c.category', ['pemasukan', 'pengeluaran', 'transfer'])
             ->select([
                 'c.code as kode',
                 'c.name as nama',
                 DB::raw('COALESCE(SUM(CASE WHEN c.category = \'pemasukan\' THEN t.amount ELSE 0 END), 0) as masuk'),
                 DB::raw('COALESCE(SUM(CASE WHEN c.category = \'pengeluaran\' THEN t.amount ELSE 0 END), 0) as keluar'),
+                DB::raw('COALESCE(SUM(CASE WHEN c.category = \'transfer\' THEN t.amount ELSE 0 END), 0) as transfer'),
             ])
             ->groupBy('c.id', 'c.code', 'c.name')
             ->orderBy('c.code');
@@ -79,6 +82,11 @@ class LaporanArusKas extends BaseReportPage
                 ->label('Kas Keluar')
                 ->formatStateUsing(fn ($state): string => $this->money((float) $state))
                 ->color('danger')
+                ->sortable(),
+            TextColumn::make('transfer')
+                ->label('Transfer')
+                ->formatStateUsing(fn ($state): string => $this->money((float) $state))
+                ->color('warning')
                 ->sortable(),
             TextColumn::make('bersih')
                 ->label('Bersih')

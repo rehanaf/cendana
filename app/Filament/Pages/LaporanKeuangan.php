@@ -156,6 +156,11 @@ class LaporanKeuangan extends Page implements HasTable
             ->whereYear('transaction_date', $year)
             ->whereMonth('transaction_date', $month);
 
+        $totalMasuk = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('category', 'pemasukan'))->sum('amount');
+        $totalKeluar = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('category', 'pengeluaran'))->sum('amount');
+        $totalTransfer = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('category', 'transfer'))->sum('amount');
+        $selisihKas = $totalMasuk - $totalKeluar;
+
         $income = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'income'))->sum('amount');
         $cogs = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'cogs'))->sum('amount');
         $expense = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'expense'))->sum('amount');
@@ -168,6 +173,14 @@ class LaporanKeuangan extends Page implements HasTable
 
         return Grid::make(['default' => 2, 'sm' => 2, 'md' => 4, 'lg' => 4])
             ->schema([
+                Stat::make('Total Pemasukan', 'Rp ' . number_format($totalMasuk, 0, ',', '.'))
+                    ->color('success'),
+                Stat::make('Total Pengeluaran', 'Rp ' . number_format($totalKeluar, 0, ',', '.'))
+                    ->color('danger'),
+                Stat::make('Total Transfer', 'Rp ' . number_format($totalTransfer, 0, ',', '.'))
+                    ->color('warning'),
+                Stat::make('Selisih Kas', 'Rp ' . number_format($selisihKas, 0, ',', '.'))
+                    ->color($selisihKas >= 0 ? 'success' : 'danger'),
                 Stat::make('Pendapatan Usaha', 'Rp ' . number_format($income, 0, ',', '.'))
                     ->color('success'),
                 Stat::make('HPP / Pembelian', 'Rp ' . number_format($cogs, 0, ',', '.'))
@@ -193,26 +206,47 @@ class LaporanKeuangan extends Page implements HasTable
         $walletId = $this->walletId ? (int) $this->walletId : null;
         $coaType = $this->coaType ? $this->coaType : null;
 
-        $query = Transaction::query()
-            ->when($walletId, fn ($q) => $q->where('wallet_id', $walletId))
+        $baseQuery = Transaction::query()
+            ->when($walletId, fn ($q) => $q->where(function ($w) use ($walletId) {
+                $w->where('wallet_id', $walletId)
+                    ->orWhere('to_wallet_id', $walletId);
+            }))
             ->when($date, fn ($q) => $q->whereDate('transaction_date', $date))
             ->when($coaType, fn ($q) => $q->whereHas('coa', fn ($cq) => $cq->where('type', $coaType)));
 
-        $income = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'income'))->sum('amount');
-        $cogs = (float) (clone $query)->whereHas('coa', fn ($q) => $q->where('type', 'cogs'))->sum('amount');
-        $expense = (float) (clone $query)->whereHas('coa', fn ($q) => $q->whereIn('type', ['expense', 'tax']))->sum('amount');
+        if ($walletId) {
+            $totalMasuk = (float) (clone $baseQuery)->where(function ($q) use ($walletId) {
+                $q->where(function ($sub) use ($walletId) {
+                    $sub->where('wallet_id', $walletId)
+                        ->whereHas('coa', fn ($cq) => $cq->where('category', 'pemasukan'));
+                })->orWhere(function ($sub) use ($walletId) {
+                    $sub->where('to_wallet_id', $walletId)
+                        ->whereHas('coa', fn ($cq) => $cq->where('category', 'transfer'));
+                });
+            })->sum('amount');
+
+            $totalKeluar = (float) (clone $baseQuery)->where(function ($q) use ($walletId) {
+                $q->where('wallet_id', $walletId)
+                    ->whereHas('coa', fn ($cq) => $cq->whereIn('category', ['pengeluaran', 'transfer']));
+            })->sum('amount');
+        } else {
+            $totalMasuk = (float) (clone $baseQuery)->whereHas('coa', fn ($q) => $q->where('category', 'pemasukan'))->sum('amount');
+            $totalKeluar = (float) (clone $baseQuery)->whereHas('coa', fn ($q) => $q->where('category', 'pengeluaran'))->sum('amount');
+        }
+
+        $totalTransfer = (float) (clone $baseQuery)->whereHas('coa', fn ($q) => $q->where('category', 'transfer'))->sum('amount');
 
         $saldoAwal = $this->getSaldo($date, $walletId, before: true);
         $saldoAkhir = $this->getSaldo($date, $walletId, before: false);
 
         return Grid::make(['default' => 2, 'sm' => 3, 'lg' => 5])
             ->schema([
-                Stat::make('Pendapatan', 'Rp ' . number_format($income, 0, ',', '.'))
+                Stat::make('Total Pemasukan', 'Rp ' . number_format($totalMasuk, 0, ',', '.'))
                     ->color('success'),
-                Stat::make('HPP / Pembelian', 'Rp ' . number_format($cogs, 0, ',', '.'))
-                    ->color('warning'),
-                Stat::make('Beban & Pajak', 'Rp ' . number_format($expense, 0, ',', '.'))
+                Stat::make('Total Pengeluaran', 'Rp ' . number_format($totalKeluar, 0, ',', '.'))
                     ->color('danger'),
+                Stat::make('Total Transfer', 'Rp ' . number_format($totalTransfer, 0, ',', '.'))
+                    ->color('warning'),
                 Stat::make('Saldo Awal', 'Rp ' . number_format($saldoAwal, 0, ',', '.'))
                     ->color('info'),
                 Stat::make('Saldo Akhir', 'Rp ' . number_format($saldoAkhir, 0, ',', '.'))
