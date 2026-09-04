@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages\Laporan;
 
+use App\Models\Coa;
 use App\Models\Transaction;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Grid;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 
 class LaporanDaftarPenjualan extends BaseReportPage
 {
-    public ?string $source = '';
+    public ?string $coaId = '';
 
     public ?string $mode = 'semua';
 
@@ -32,15 +33,18 @@ class LaporanDaftarPenjualan extends BaseReportPage
     protected function reportFilterComponents(): array
     {
         return [
-            Select::make('source')
+            Select::make('coaId')
                 ->hiddenLabel()
                 ->native(true)
-                ->options([
-                    '' => 'Semua Jenis',
-                    'corporate' => 'Corporate',
-                    'retail' => 'Retail',
-                    'lainnya' => 'Pendapatan Lain',
-                ])
+                ->options(fn (): array =>
+                    Coa::query()
+                        ->where('type', 'income')
+                        ->orderBy('code')
+                        ->get()
+                        ->mapWithKeys(fn (Coa $c): array => [$c->id => $c->code . ' - ' . $c->name])
+                        ->prepend('Semua Akun Penjualan', '')
+                        ->toArray()
+                )
                 ->live()
                 ->afterStateUpdated(fn () => $this->dispatch('refresh-table')),
             ...parent::reportFilterComponents(),
@@ -68,12 +72,15 @@ class LaporanDaftarPenjualan extends BaseReportPage
     {
         return DB::table('sales as s')
             ->leftJoin('corporate_customers as c', 'c.id', '=', 's.customer_id')
+            ->leftJoin('coas as co', 'co.id', '=', 's.coa_id')
             ->select([
                 's.invoice_no as invoice_no',
                 's.date as date',
                 DB::raw('COALESCE(c.name, \'\') as customer_name'),
                 DB::raw('\'Corporate\' as customer_type'),
                 DB::raw('\'Penjualan\' as sumber'),
+                's.coa_id as coa_id',
+                DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 's.total as total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.sale_id = s.id) as total_paid'),
                 's.status as status',
@@ -84,12 +91,15 @@ class LaporanDaftarPenjualan extends BaseReportPage
     {
         return DB::table('subscription_invoices as si')
             ->leftJoin('corporate_customers as c', 'c.id', '=', 'si.customer_id')
+            ->leftJoin('coas as co', 'co.id', '=', 'si.coa_id')
             ->select([
                 'si.invoice_no as invoice_no',
                 'si.date as date',
                 DB::raw('COALESCE(c.name, \'\') as customer_name'),
                 DB::raw('\'Corporate\' as customer_type'),
                 DB::raw('\'Langganan\' as sumber'),
+                'si.coa_id as coa_id',
+                DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 'si.total as total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.subscription_invoice_id = si.id) as total_paid'),
                 'si.status as status',
@@ -100,12 +110,15 @@ class LaporanDaftarPenjualan extends BaseReportPage
     {
         return DB::table('retail_invoices as ri')
             ->leftJoin('retail_customers as rc', 'rc.id', '=', 'ri.retail_customer_id')
+            ->leftJoin('coas as co', 'co.id', '=', 'ri.coa_id')
             ->select([
                 'ri.invoice_no as invoice_no',
                 'ri.date as date',
                 DB::raw('COALESCE(rc.name, \'\') as customer_name'),
                 DB::raw('\'Retail\' as customer_type'),
                 DB::raw('\'Retail\' as sumber'),
+                'ri.coa_id as coa_id',
+                DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 'ri.total as total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.retail_invoice_id = ri.id) as total_paid'),
                 'ri.status as status',
@@ -116,7 +129,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
     {
         return DB::table('transactions as t')
             ->join('coas as co', 'co.id', '=', 't.coa_id')
-            ->where('co.category', 'pemasukan')
+            ->where('co.type', 'income')
             ->whereNull('t.sale_id')
             ->whereNull('t.purchase_id')
             ->whereNull('t.subscription_invoice_id')
@@ -127,6 +140,8 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 DB::raw('\'\' as customer_name'),
                 DB::raw('\'-\' as customer_type'),
                 DB::raw('\'Pendapatan Lain\' as sumber'),
+                't.coa_id as coa_id',
+                DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 't.amount as total',
                 't.amount as total_paid',
                 DB::raw('\'lunas\' as status'),
@@ -135,20 +150,12 @@ class LaporanDaftarPenjualan extends BaseReportPage
 
     protected function getQuery()
     {
-        $parts = [];
-
-        if ($this->source === '' || $this->source === 'corporate') {
-            $parts[] = $this->salesSub();
-            $parts[] = $this->subscriptionSub();
-        }
-
-        if ($this->source === '' || $this->source === 'retail') {
-            $parts[] = $this->retailSub();
-        }
-
-        if ($this->source === '' || $this->source === 'lainnya') {
-            $parts[] = $this->otherIncomeSub();
-        }
+        $parts = [
+            $this->salesSub(),
+            $this->subscriptionSub(),
+            $this->retailSub(),
+            $this->otherIncomeSub(),
+        ];
 
         $union = array_shift($parts);
 
@@ -158,14 +165,11 @@ class LaporanDaftarPenjualan extends BaseReportPage
 
         $query = Transaction::query()
             ->fromSub($union, 'penjualan')
-            ->select(['invoice_no', 'date', 'customer_name', 'customer_type', 'sumber', 'total', 'total_paid', 'status']);
+            ->select(['invoice_no', 'date', 'customer_name', 'customer_type', 'sumber', 'coa_id', 'coa_name', 'total', 'total_paid', 'status']);
 
-        $query = match ($this->source) {
-            'corporate' => $query->whereIn('sumber', ['Penjualan', 'Langganan']),
-            'retail' => $query->where('sumber', 'Retail'),
-            'lainnya' => $query->where('sumber', 'Pendapatan Lain'),
-            default => $query,
-        };
+        if ($this->coaId) {
+            $query->where('coa_id', (int) $this->coaId);
+        }
 
         return $this->applyModeFilter($query, 'date');
     }
@@ -193,6 +197,12 @@ class LaporanDaftarPenjualan extends BaseReportPage
                     'Retail' => 'success',
                     default => 'gray',
                 }),
+            TextColumn::make('coa_name')
+                ->label('Akun COA')
+                ->badge()
+                ->color('primary')
+                ->searchable()
+                ->sortable(),
             TextColumn::make('sumber')
                 ->label('Sumber')
                 ->badge()

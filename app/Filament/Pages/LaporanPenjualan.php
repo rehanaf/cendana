@@ -32,7 +32,7 @@ class LaporanPenjualan extends Page implements HasTable
     public ?string $reportYear = null;
     public ?string $periodStart = null;
     public ?string $periodEnd = null;
-    public ?string $source = '';
+    public ?string $coaId = '';
 
     protected static ?int $navigationSort = 2;
 
@@ -75,15 +75,18 @@ class LaporanPenjualan extends Page implements HasTable
             ->components([
                 Section::make('Laporan Penjualan')
                     ->afterHeader([
-                        Select::make('source')
+                        Select::make('coaId')
                             ->hiddenLabel()
                             ->native(true)
-                            ->options([
-                                '' => 'Semua Jenis',
-                                'corporate' => 'Corporate',
-                                'retail' => 'Retail',
-                                'lainnya' => 'Pendapatan Lain',
-                            ])
+                            ->options(fn (): array =>
+                                \App\Models\Coa::query()
+                                    ->where('type', 'income')
+                                    ->orderBy('code')
+                                    ->get()
+                                    ->mapWithKeys(fn (\App\Models\Coa $c): array => [$c->id => $c->code . ' - ' . $c->name])
+                                    ->prepend('Semua Akun Penjualan', '')
+                                    ->toArray()
+                            )
                             ->live()
                             ->afterStateUpdated(fn () => $this->dispatch('refresh-table')),
                         Select::make('mode')
@@ -167,11 +170,14 @@ class LaporanPenjualan extends Page implements HasTable
     {
         return DB::table('sales as s')
             ->leftJoin('corporate_customers as c', 'c.id', '=', 's.customer_id')
+            ->leftJoin('coas as co', 'co.id', '=', 's.coa_id')
             ->select([
                 's.invoice_no',
                 's.date',
                 DB::raw('COALESCE(c.name, \'\') as customer_name'),
                 DB::raw('\'Penjualan\' as sumber'),
+                's.coa_id',
+                DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 's.total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.sale_id = s.id) as total_paid'),
                 's.status',
@@ -182,11 +188,14 @@ class LaporanPenjualan extends Page implements HasTable
     {
         return DB::table('subscription_invoices as si')
             ->leftJoin('corporate_customers as c', 'c.id', '=', 'si.customer_id')
+            ->leftJoin('coas as co', 'co.id', '=', 'si.coa_id')
             ->select([
                 'si.invoice_no',
                 'si.date',
                 DB::raw('COALESCE(c.name, \'\') as customer_name'),
                 DB::raw('\'Langganan\' as sumber'),
+                'si.coa_id',
+                DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 'si.total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.subscription_invoice_id = si.id) as total_paid'),
                 'si.status',
@@ -197,11 +206,14 @@ class LaporanPenjualan extends Page implements HasTable
     {
         return DB::table('retail_invoices as ri')
             ->leftJoin('retail_customers as rc', 'rc.id', '=', 'ri.retail_customer_id')
+            ->leftJoin('coas as co', 'co.id', '=', 'ri.coa_id')
             ->select([
                 'ri.invoice_no',
                 'ri.date',
                 DB::raw('COALESCE(rc.name, \'\') as customer_name'),
                 DB::raw('\'Retail\' as sumber'),
+                'ri.coa_id',
+                DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 'ri.total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.retail_invoice_id = ri.id) as total_paid'),
                 'ri.status',
@@ -212,7 +224,7 @@ class LaporanPenjualan extends Page implements HasTable
     {
         return DB::table('transactions as t')
             ->join('coas as co', 'co.id', '=', 't.coa_id')
-            ->where('co.category', 'pemasukan')
+            ->where('co.type', 'income')
             ->whereNull('t.sale_id')
             ->whereNull('t.purchase_id')
             ->whereNull('t.subscription_invoice_id')
@@ -222,6 +234,8 @@ class LaporanPenjualan extends Page implements HasTable
                 't.transaction_date as date',
                 DB::raw('\'\' as customer_name'),
                 DB::raw('\'Pendapatan Lain\' as sumber'),
+                't.coa_id',
+                DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 't.amount as total',
                 't.amount as total_paid',
                 DB::raw('\'lunas\' as status'),
@@ -251,20 +265,12 @@ class LaporanPenjualan extends Page implements HasTable
 
     protected function buildUnion(): Builder
     {
-        $parts = [];
-
-        if ($this->source === '' || $this->source === 'corporate') {
-            $parts[] = $this->salesSubQuery();
-            $parts[] = $this->subscriptionSubQuery();
-        }
-
-        if ($this->source === '' || $this->source === 'retail') {
-            $parts[] = $this->retailSubQuery();
-        }
-
-        if ($this->source === '' || $this->source === 'lainnya') {
-            $parts[] = $this->otherIncomeSubQuery();
-        }
+        $parts = [
+            $this->salesSubQuery(),
+            $this->subscriptionSubQuery(),
+            $this->retailSubQuery(),
+            $this->otherIncomeSubQuery(),
+        ];
 
         $union = array_shift($parts);
 
@@ -281,21 +287,13 @@ class LaporanPenjualan extends Page implements HasTable
 
         $query = \App\Models\Transaction::query()
             ->fromSub($sub, 'penjualan')
-            ->select(['invoice_no', 'date', 'customer_name', 'sumber', 'total', 'total_paid', 'status']);
+            ->select(['invoice_no', 'date', 'customer_name', 'sumber', 'coa_id', 'coa_name', 'total', 'total_paid', 'status']);
 
-        $query = $this->applySourceFilter($query);
+        if ($this->coaId) {
+            $query->where('coa_id', (int) $this->coaId);
+        }
 
         return $this->applyModeFilter($query);
-    }
-
-    protected function applySourceFilter(QueryBuilderContract $query): QueryBuilderContract
-    {
-        return match ($this->source) {
-            'corporate' => $query->whereIn('sumber', ['Penjualan', 'Langganan']),
-            'retail' => $query->where('sumber', 'Retail'),
-            'lainnya' => $query->where('sumber', 'Pendapatan Lain'),
-            default => $query,
-        };
     }
 
     protected function makeTable(): Table
@@ -313,6 +311,12 @@ class LaporanPenjualan extends Page implements HasTable
                     ->sortable(),
                 TextColumn::make('customer_name')
                     ->label('Pelanggan')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('coa_name')
+                    ->label('Akun COA')
+                    ->badge()
+                    ->color('primary')
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('sumber')
