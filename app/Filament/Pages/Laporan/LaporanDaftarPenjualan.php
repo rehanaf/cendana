@@ -80,7 +80,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 's.date as date',
                 DB::raw('COALESCE(c.name, \'\') as customer_name'),
                 DB::raw('\'Corporate\' as customer_type'),
-                DB::raw('\'Penjualan\' as sumber'),
+                DB::raw('\'Penjualan\' as sumber_label'),
                 's.coa_id as coa_id',
                 DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 's.total as total',
@@ -100,7 +100,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 'si.date as date',
                 DB::raw('COALESCE(c.name, \'\') as customer_name'),
                 DB::raw('\'Corporate\' as customer_type'),
-                DB::raw('\'Langganan\' as sumber'),
+                DB::raw('\'Langganan\' as sumber_label'),
                 'si.coa_id as coa_id',
                 DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 'si.total as total',
@@ -120,7 +120,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 'ri.date as date',
                 DB::raw('COALESCE(rc.name, \'\') as customer_name'),
                 DB::raw('\'Retail\' as customer_type'),
-                DB::raw('\'Retail\' as sumber'),
+                DB::raw('\'Retail\' as sumber_label'),
                 'ri.coa_id as coa_id',
                 DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 'ri.total as total',
@@ -144,7 +144,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 't.transaction_date as date',
                 DB::raw('\'\' as customer_name'),
                 DB::raw('\'-\' as customer_type'),
-                DB::raw('\'Pendapatan Lain\' as sumber'),
+                DB::raw('\'Pendapatan Lain\' as sumber_label'),
                 't.coa_id as coa_id',
                 DB::raw('COALESCE(co.name, \'-\') as coa_name'),
                 't.amount as total',
@@ -170,7 +170,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
 
         $query = Transaction::query()
             ->fromSub($union, 'penjualan')
-            ->select(['invoice_no', 'date', 'customer_name', 'customer_type', 'sumber', 'coa_id', 'coa_name', 'total', 'total_paid', 'status']);
+            ->select(['invoice_no', 'date', 'customer_name', 'customer_type', 'sumber_label', 'coa_id', 'coa_name', 'total', 'total_paid', 'status']);
 
         if ($this->coaId) {
             $query->where('coa_id', (int) $this->coaId);
@@ -208,7 +208,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 ->color('primary')
                 ->searchable()
                 ->sortable(),
-            TextColumn::make('sumber')
+            TextColumn::make('sumber_label')
                 ->label('Sumber')
                 ->badge()
                 ->color(fn (string $state): string => match ($state) {
