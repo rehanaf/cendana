@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Resources\Transactions\TransactionsColumnDefaults;
 use App\Models\Coa;
 use App\Models\Purchase;
 use App\Models\RetailInvoice;
@@ -14,10 +15,12 @@ use App\Models\Wallet;
 use App\Services\WebhookService;
 use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Select;
+use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
@@ -75,6 +78,11 @@ class Settings extends Page
 
     public string $webhook_retail_body = '';
 
+    /**
+     * @var array<int, array{context: string, label: string, columns: array<int, string>}>
+     */
+    public array $transaction_columns = [];
+
     public static function getNavigationLabel(): string
     {
         return 'Pengaturan Keuangan';
@@ -85,12 +93,12 @@ class Settings extends Page
         return 'Pengaturan Keuangan';
     }
 
-    public static function getNavigationGroup(): string | \UnitEnum | null
+    public static function getNavigationGroup(): string|\UnitEnum|null
     {
         return 'Pengaturan';
     }
 
-    public static function getNavigationIcon(): string | BackedEnum | null
+    public static function getNavigationIcon(): string|BackedEnum|null
     {
         return 'heroicon-o-cog-6-tooth';
     }
@@ -123,6 +131,25 @@ class Settings extends Page
         $this->retail_auto_generate = (bool) Setting::get('retail_auto_generate', false);
         $this->retail_generate_day = (int) Setting::get('retail_generate_day', 1);
         $this->loadWebhook('retail');
+
+        $this->transaction_columns = $this->resolveTransactionColumns();
+    }
+
+    private function resolveTransactionColumns(): array
+    {
+        $tabs = [['context' => 'all', 'label' => 'Semua']]
+            + Wallet::orderBy('name')->get()
+                ->mapWithKeys(fn (Wallet $wallet): array => [
+                    $wallet->id => ['context' => 'wallet_'.$wallet->id, 'label' => $wallet->name],
+                ])
+                ->all();
+
+        return collect($tabs)->map(fn (array $tab): array => [
+            'context' => $tab['context'],
+            'label' => $tab['label'],
+            'columns' => TransactionsColumnDefaults::visibleForTab($tab['context'])
+                ?? TransactionsColumnDefaults::nativeDefaultVisible(),
+        ])->values()->all();
     }
 
     private function loadWebhook(string $type): void
@@ -143,7 +170,7 @@ class Settings extends Page
             ->where('category', $category)
             ->orderBy('code')
             ->get()
-            ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code . ' - ' . $coa->name])
+            ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code.' - '.$coa->name])
             ->toArray();
     }
 
@@ -152,7 +179,7 @@ class Settings extends Page
         return Wallet::where('is_active', true)
             ->orderBy('name')
             ->get()
-            ->mapWithKeys(fn (Wallet $wallet): array => [$wallet->id => $wallet->name . ' (Rp ' . number_format($wallet->balance, 0, ',', '.') . ')'])
+            ->mapWithKeys(fn (Wallet $wallet): array => [$wallet->id => $wallet->name.' (Rp '.number_format($wallet->balance, 0, ',', '.').')'])
             ->toArray();
     }
 
@@ -276,6 +303,29 @@ class Settings extends Page
                             ]),
                     ])
                     ->columns(3),
+                Section::make('Kolom Tampil di Tabel Transaksi')
+                    ->description('Pilih kolom yang tampil secara default di setiap tab dompet pada halaman Transaksi. Admin berprioritas: pengaturan ini berlaku setiap kali tab tersebut dibuka. Pengguna tetap bisa mengatur ulang lewat menu pengaturan kolom pada tabel.')
+                    ->schema([
+                        Repeater::make('transaction_columns')
+                            ->hiddenLabel()
+                            ->addable(false)
+                            ->deletable(false)
+                            ->reorderable(false)
+                            ->schema([
+                                Hidden::make('context'),
+                                TextInput::make('label')
+                                    ->label('Tab')
+                                    ->disabled()
+                                    ->dehydrated(false),
+                                CheckboxList::make('columns')
+                                    ->label('Kolom yang tampil')
+                                    ->options(TransactionsColumnDefaults::labels())
+                                    ->columns(2)
+                                    ->columnSpan(2),
+                            ])
+                            ->columns(2),
+                    ])
+                    ->columns(1),
             ]);
     }
 
@@ -326,11 +376,39 @@ class Settings extends Page
         Setting::set('retail_generate_day', $this->retail_generate_day);
         $this->saveWebhook('retail');
 
+        $this->saveTransactionColumns();
+
         $this->dispatch('refresh-sidebar');
         Notification::make()
             ->success()
             ->title('Pengaturan tersimpan.')
             ->send();
+    }
+
+    private function saveTransactionColumns(): void
+    {
+        $groups = [];
+
+        foreach ($this->transaction_columns as $item) {
+            $context = $item['context'] ?? null;
+            $columns = $item['columns'] ?? [];
+
+            if (! $context) {
+                continue;
+            }
+
+            $key = TransactionsColumnDefaults::settingKeyForTab($context);
+
+            if (! $key) {
+                continue;
+            }
+
+            $groups[$key] = json_encode(array_values(array_intersect($columns, TransactionsColumnDefaults::keys())), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
+
+        foreach ($groups as $key => $value) {
+            Setting::set($key, $value);
+        }
     }
 
     private function saveWebhook(string $type): void
@@ -383,7 +461,7 @@ class Settings extends Page
                     Notification::make()
                         ->success()
                         ->title('Webhook terkirim')
-                        ->body('Status HTTP: ' . ($result['status'] ?? 'OK'))
+                        ->body('Status HTTP: '.($result['status'] ?? 'OK'))
                         ->send();
                 } else {
                     Notification::make()
@@ -527,19 +605,19 @@ class Settings extends Page
 
                     if ($corrected->isNotEmpty()) {
                         $detail = $corrected
-                            ->map(fn (array $wallet): string => $wallet['name'] . ' (' . number_format($wallet['before'], 0, ',', '.') . ' → ' . number_format($wallet['after'], 0, ',', '.') . ')')
+                            ->map(fn (array $wallet): string => $wallet['name'].' ('.number_format($wallet['before'], 0, ',', '.').' → '.number_format($wallet['after'], 0, ',', '.').')')
                             ->implode(', ');
 
                         Notification::make()
                             ->warning()
                             ->title('Saldo berhasil dihitung ulang')
-                            ->body($wallets->count() . ' dompet diperiksa, ' . $corrected->count() . ' saldo dikoreksi: ' . $detail)
+                            ->body($wallets->count().' dompet diperiksa, '.$corrected->count().' saldo dikoreksi: '.$detail)
                             ->send();
                     } else {
                         Notification::make()
                             ->success()
                             ->title('Saldo berhasil dihitung ulang')
-                            ->body($wallets->count() . ' dompet diperiksa, semua saldo sudah sesuai.')
+                            ->body($wallets->count().' dompet diperiksa, semua saldo sudah sesuai.')
                             ->send();
                     }
 
