@@ -25,8 +25,6 @@ class LaporanHub
                     ['label' => 'Piutang Pelanggan', 'description' => 'Tagihan penjualan yang belum lunas', 'url' => LaporanPiutangPelanggan::getUrl(), 'icon' => 'heroicon-o-arrow-trending-up'],
                     ['label' => 'Usia Piutang', 'description' => 'Analisis umur piutang pelanggan', 'url' => LaporanUsiaPiutang::getUrl(), 'icon' => 'heroicon-o-clock'],
                     ['label' => 'Penjualan Per Produk', 'description' => 'Rekap penjualan berdasarkan produk', 'url' => LaporanPenjualanPerProduk::getUrl(), 'icon' => 'heroicon-o-cube'],
-                    ['label' => 'Laporan Langganan', 'description' => 'Rekap tagihan langganan corporate', 'url' => LaporanTagihanLangganan::getUrl(), 'icon' => 'heroicon-o-receipt-percent'],
-                    ['label' => 'Hutang Pelanggan Corporate', 'description' => 'Saldo tagihan per pelanggan corporate', 'url' => LaporanHutangPelangganCorporate::getUrl(), 'icon' => 'heroicon-o-users'],
                 ],
             ],
             'Pembelian' => [
