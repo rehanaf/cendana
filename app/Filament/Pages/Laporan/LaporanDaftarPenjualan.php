@@ -39,6 +39,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
                 ->options(fn (): array =>
                     Coa::query()
                         ->where('type', 'income')
+                        ->where('is_active', true)
                         ->orderBy('code')
                         ->get()
                         ->mapWithKeys(fn (Coa $c): array => [$c->id => $c->code . ' - ' . $c->name])
@@ -73,6 +74,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
         return DB::table('sales as s')
             ->leftJoin('corporate_customers as c', 'c.id', '=', 's.customer_id')
             ->leftJoin('coas as co', 'co.id', '=', 's.coa_id')
+            ->where('co.is_active', true)
             ->select([
                 's.invoice_no as invoice_no',
                 's.date as date',
@@ -92,6 +94,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
         return DB::table('subscription_invoices as si')
             ->leftJoin('corporate_customers as c', 'c.id', '=', 'si.customer_id')
             ->leftJoin('coas as co', 'co.id', '=', 'si.coa_id')
+            ->where('co.is_active', true)
             ->select([
                 'si.invoice_no as invoice_no',
                 'si.date as date',
@@ -111,6 +114,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
         return DB::table('retail_invoices as ri')
             ->leftJoin('retail_customers as rc', 'rc.id', '=', 'ri.retail_customer_id')
             ->leftJoin('coas as co', 'co.id', '=', 'ri.coa_id')
+            ->where('co.is_active', true)
             ->select([
                 'ri.invoice_no as invoice_no',
                 'ri.date as date',
@@ -130,6 +134,7 @@ class LaporanDaftarPenjualan extends BaseReportPage
         return DB::table('transactions as t')
             ->join('coas as co', 'co.id', '=', 't.coa_id')
             ->where('co.type', 'income')
+            ->where('co.is_active', true)
             ->whereNull('t.sale_id')
             ->whereNull('t.purchase_id')
             ->whereNull('t.subscription_invoice_id')
