@@ -279,6 +279,34 @@ class Settings extends Page
             ]);
     }
 
+    public static function deleteEmptyInvoices(int $year, int $month): array
+    {
+        return DB::transaction(function () use ($year, $month): array {
+            $counts = [];
+
+            foreach ([
+                'penjualan' => Sale::class,
+                'pembelian' => Purchase::class,
+                'langganan' => SubscriptionInvoice::class,
+                'retail' => RetailInvoice::class,
+            ] as $key => $model) {
+                $counts[$key] = $model::query()
+                    ->whereYear('date', $year)
+                    ->whereMonth('date', $month)
+                    ->get()
+                    ->filter(fn ($invoice): bool => $invoice->journalTransactions()->count() === 0)
+                    ->pipe(function ($items) {
+                        $items->each->delete();
+
+                        return $items;
+                    })
+                    ->count();
+            }
+
+            return $counts;
+        });
+    }
+
     public function save(): void
     {
         Setting::set('coa_penjualan_id', $this->coa_penjualan_id ?: '');
@@ -420,6 +448,62 @@ class Settings extends Page
                         ->send();
 
                     $this->dispatch('refresh-sidebar');
+                }),
+            Action::make('deleteEmptyInvoices')
+                ->label('Hapus Invoice Tanpa Transaksi')
+                ->icon('heroicon-o-document-minus')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('Hapus Invoice / Tagihan Tanpa Transaksi')
+                ->modalDescription('Hapus semua invoice penjualan, pembelian, tagihan retail, dan tagihan langganan corporate pada bulan terpilih yang BELUM memiliki transaksi pembayaran sama sekali.')
+                ->modalSubmitActionLabel('Ya, Hapus')
+                ->schema([
+                    Select::make('year')
+                        ->label('Tahun')
+                        ->options(fn (): array => collect(range(now()->year, now()->year - 5))
+                            ->mapWithKeys(fn (int $y): array => [$y => $y])
+                            ->toArray())
+                        ->default((string) now()->year)
+                        ->live(),
+                    Select::make('month')
+                        ->label('Bulan')
+                        ->options([
+                            '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+                            '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+                            '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+                            '10' => 'Oktober', '11' => 'November', '12' => 'Desember',
+                        ])
+                        ->default('08'),
+                ])
+                ->action(function (Action $action, array $data): void {
+                    $year = (int) $data['year'];
+                    $month = (int) $data['month'];
+
+                    $count = static::deleteEmptyInvoices($year, $month);
+
+                    $total = array_sum($count);
+
+                    if ($total === 0) {
+                        Notification::make()
+                            ->info()
+                            ->title('Tidak ada invoice yang dihapus')
+                            ->body('Semua invoice periode '.str_pad((string) $month, 2, '0', STR_PAD_LEFT).'/'.$year.' sudah memiliki transaksi pembayaran.')
+                            ->send();
+
+                        return;
+                    }
+
+                    Notification::make()
+                        ->success()
+                        ->title('Invoice berhasil dihapus')
+                        ->body(sprintf(
+                            'Penjualan: %d, Pembelian: %d, Langganan: %d, Retail: %d.',
+                            $count['penjualan'],
+                            $count['pembelian'],
+                            $count['langganan'],
+                            $count['retail'],
+                        ))
+                        ->send();
                 }),
             Action::make('recalculateBalances')
                 ->label('Hitung Ulang Saldo')
