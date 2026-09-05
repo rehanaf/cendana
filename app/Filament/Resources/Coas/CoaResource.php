@@ -4,6 +4,11 @@ namespace App\Filament\Resources\Coas;
 
 use App\Filament\Resources\Coas\Pages\ManageCoas;
 use App\Models\Coa;
+use App\Models\Purchase;
+use App\Models\RetailInvoice;
+use App\Models\Sale;
+use App\Models\SubscriptionInvoice;
+use App\Models\Transaction;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -19,6 +24,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\DB;
 
 class CoaResource extends Resource
 {
@@ -183,18 +189,66 @@ class CoaResource extends Resource
                 DeleteAction::make()
                     ->iconButton()
                     ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false)
-                    ->action(function (DeleteAction $action, Coa $record): void {
+                    ->tooltip('Hapus / pindahkan data ke COA pengganti')
+                    ->form([
+                        Select::make('replacement_coa_id')
+                            ->label('COA Pengganti')
+                            ->placeholder('Pilih COA pengganti…')
+                            ->options(fn (DeleteAction $action): array => Coa::query()
+                                ->where('id', '!=', $action->getRecord()?->getKey())
+                                ->when($action->getRecord()?->category, fn ($q, $category) => $q->where('category', $category))
+                                ->orderBy('code')
+                                ->get()
+                                ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code . ' - ' . $coa->name])
+                                ->toArray()
+                            )
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->helperText('Wajib diisi bila COA ini masih dipakai transaksi. Seluruh data akan dipindahkan ke COA pengganti, lalu COA dihapus.'),
+                    ])
+                    ->action(function (DeleteAction $action, Coa $record, array $data): void {
                         $usage = $record->usageLabels();
 
                         if ($usage->isNotEmpty()) {
-                            Notification::make()
-                                ->danger()
-                                ->title('COA tidak dapat dihapus')
-                                ->body('Masih dipakai oleh: ' . $usage->implode(', ') . '. Nonaktifkan COA ini bila tidak digunakan lagi.')
-                                ->persistent()
-                                ->send();
+                            $replacement = $data['replacement_coa_id'] ?? null;
 
-                            $action->halt();
+                            if (! $replacement) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('Pilih COA pengganti')
+                                    ->body('COA ini masih dipakai oleh: ' . $usage->implode(', ') . '. Pilih COA pengganti untuk memindahkan datanya agar COA dapat dihapus.')
+                                    ->persistent()
+                                    ->send();
+
+                                $action->halt();
+
+                                return;
+                            }
+
+                            $target = Coa::find((int) $replacement);
+
+                            if (! $target || $target->getKey() === $record->getKey()) {
+                                Notification::make()
+                                    ->danger()
+                                    ->title('COA pengganti tidak valid')
+                                    ->send();
+
+                                $action->halt();
+
+                                return;
+                            }
+
+                            DB::transaction(function () use ($record, $target): void {
+                                static::reassignCoaData($record, $target);
+                                $record->delete();
+                            });
+
+                            Notification::make()
+                                ->success()
+                                ->title('COA berhasil dihapus')
+                                ->body("Data telah dipindahkan ke {$target->code} - {$target->name}.")
+                                ->send();
 
                             return;
                         }
@@ -208,6 +262,39 @@ class CoaResource extends Resource
                     }),
             ])
             ->defaultSort('code');
+    }
+
+    public static function reassignCoaData(Coa $source, Coa $target): void
+    {
+        $affected = Transaction::query()
+            ->where('coa_id', $source->getKey())
+            ->get(['wallet_id', 'to_wallet_id'])
+            ->flatMap(fn (Transaction $t): array => [$t->wallet_id, $t->to_wallet_id])
+            ->filter()
+            ->unique()
+            ->values();
+
+        $update = [
+            'coa_id' => $target->getKey(),
+            'updated_at' => now(),
+        ];
+
+        if ($target->category !== 'transfer') {
+            $update['to_wallet_id'] = null;
+        }
+
+        Transaction::query()
+            ->where('coa_id', $source->getKey())
+            ->update($update);
+
+        Sale::query()->where('coa_id', $source->getKey())->update(['coa_id' => $target->getKey()]);
+        Purchase::query()->where('coa_id', $source->getKey())->update(['coa_id' => $target->getKey()]);
+        RetailInvoice::query()->where('coa_id', $source->getKey())->update(['coa_id' => $target->getKey()]);
+        SubscriptionInvoice::query()->where('coa_id', $source->getKey())->update(['coa_id' => $target->getKey()]);
+
+        if ($affected->isNotEmpty()) {
+            Transaction::recalculateWalletBalances($affected->all());
+        }
     }
 
     public static function getPages(): array
