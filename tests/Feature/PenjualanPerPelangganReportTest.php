@@ -42,6 +42,25 @@ class PenjualanPerPelangganReportTest extends TestCase
         $this->assertStringContainsString('PT Cendana Teknologi', $html);
     }
 
+    public function test_stat_corporate_penjualan_non_zero(): void
+    {
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            $this->markTestSkipped('Test ini untuk SQLite.');
+        }
+
+        $user = User::query()->first();
+        $this->assertNotNull($user, 'No user in DB');
+        $this->actingAs($user);
+
+        $response = $this->get('admin/laporan-penjualan-per-pelanggan');
+        $response->assertStatus(200);
+        $html = $response->getContent();
+
+        $this->assertStringContainsString('Rp 246.000.000', $html);
+        $this->assertStringContainsString('Rp 80.500.000', $html);
+        $this->assertStringContainsString('Rp 5.320.000', $html);
+    }
+
     public function test_corporate_table_has_rows_and_view_action(): void
     {
         if (DB::connection()->getDriverName() !== 'sqlite') {
@@ -80,7 +99,7 @@ class PenjualanPerPelangganReportTest extends TestCase
                         'table' => true,
                         'recordKey' => 'PT Cendana Teknologi',
                     ],
-                ]
+                ],
             ])
             ->assertMountedActionModalSee('SUB-')
             ->assertMountedActionModalSee('Penjualan')

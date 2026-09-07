@@ -29,6 +29,8 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class SaleResource extends Resource
 {
@@ -62,6 +64,95 @@ class SaleResource extends Resource
     public static function getModelLabel(): string
     {
         return 'Penjualan';
+    }
+
+    protected static function unifiedQuery(): Builder
+    {
+        $offset = 1000000000;
+
+        $sales = DB::table('sales as s')
+            ->leftJoin('corporate_customers as c', 'c.id', '=', 's.customer_id')
+            ->select([
+                's.id as id',
+                's.invoice_no as invoice_no',
+                's.date as date',
+                's.due_date as due_date',
+                DB::raw('COALESCE(c.customer_code, \'\') as customer_code'),
+                DB::raw('COALESCE(c.name, \'\') as customer_name'),
+                DB::raw('\'Corporate\' as customer_type'),
+                DB::raw('0 as is_retail'),
+                's.total as total',
+                DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.sale_id = s.id) as paid'),
+                's.status as status',
+                DB::raw('COALESCE(s.notes, \'\') as notes'),
+                's.id as sale_id',
+                DB::raw('NULL as retail_invoice_id'),
+                DB::raw('NULL as period'),
+                's.customer_id as customer_id',
+                DB::raw('COALESCE(s.marketing_cost, 0) as marketing_cost'),
+                's.coa_id as coa_id',
+                's.wallet_id as wallet_id',
+            ]);
+
+        $retail = DB::table('retail_invoices as ri')
+            ->leftJoin('retail_customers as rc', 'rc.id', '=', 'ri.retail_customer_id')
+            ->select([
+                DB::raw("$offset + ri.id as id"),
+                'ri.invoice_no as invoice_no',
+                'ri.date as date',
+                'ri.due_date as due_date',
+                DB::raw('COALESCE(rc.customer_code, \'\') as customer_code'),
+                DB::raw('COALESCE(rc.name, \'\') as customer_name'),
+                DB::raw('\'Retail\' as customer_type'),
+                DB::raw('1 as is_retail'),
+                'ri.total as total',
+                DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.retail_invoice_id = ri.id) as paid'),
+                'ri.status as status',
+                DB::raw('COALESCE(ri.notes, \'\') as notes'),
+                DB::raw('NULL as sale_id'),
+                'ri.id as retail_invoice_id',
+                'ri.period as period',
+                DB::raw('NULL as customer_id'),
+                DB::raw('0 as marketing_cost'),
+                'ri.coa_id as coa_id',
+                'ri.wallet_id as wallet_id',
+            ]);
+
+        $union = $sales->unionAll($retail);
+
+        $query = (new Sale)
+            ->setTable('penjualan')
+            ->newQuery()
+            ->fromSub($union, 'penjualan')
+            ->select([
+                'id',
+                'invoice_no',
+                'date',
+                'due_date',
+                'customer_code',
+                'customer_name',
+                'customer_type',
+                'is_retail',
+                'total',
+                'paid',
+                'status',
+                'notes',
+                'sale_id',
+                'retail_invoice_id',
+                'period',
+                'customer_id',
+                'marketing_cost',
+                'coa_id',
+                'wallet_id',
+            ]);
+
+        $user = auth()->user();
+
+        if ($user && ! $user->isAdmin() && ! $user->hasPermission('view_retail_invoices')) {
+            $query->where('is_retail', 0);
+        }
+
+        return $query;
     }
 
     public static function form(Schema $schema): Schema
@@ -137,6 +228,7 @@ class SaleResource extends Resource
     {
         return $table
             ->recordTitleAttribute('invoice_no')
+            ->query(static::unifiedQuery())
             ->columns([
                 TextColumn::make('invoice_no')
                     ->label('No. Nota')
@@ -148,34 +240,46 @@ class SaleResource extends Resource
                     ->date('d F Y')
                     ->sortable()
                     ->toggleable(),
-                TextColumn::make('customer.customer_code')
+                TextColumn::make('customer_code')
                     ->label('ID Pelanggan')
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
-                TextColumn::make('customer.name')
+                TextColumn::make('customer_name')
                     ->label('Nama Pelanggan')
                     ->searchable()
                     ->sortable()
+                    ->toggleable(),
+                TextColumn::make('customer_type')
+                    ->label('Tipe')
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'Retail' ? 'success' : 'info')
                     ->toggleable(),
                 TextColumn::make('due_date')
                     ->label('Jatuh Tempo')
                     ->date('d F Y')
                     ->sortable()
                     ->toggleable(),
+                TextColumn::make('period')
+                    ->label('Periode')
+                    ->date('F Y')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->getStateUsing(fn (Sale $record): ?string => $record->period ?: null),
                 TextColumn::make('total')
                     ->label('Total')
                     ->money('IDR', decimalPlaces: 0)
                     ->sortable()
                     ->toggleable(),
-                TextColumn::make('total_paid')
+                TextColumn::make('paid')
                     ->label('Dibayar')
                     ->money('IDR', decimalPlaces: 0)
                     ->toggleable(),
                 TextColumn::make('sisa')
                     ->label('Sisa')
                     ->money('IDR', decimalPlaces: 0)
-                    ->color(fn (Sale $record): string => $record->sisa > 0 ? 'danger' : 'success')
+                    ->getStateUsing(fn (Sale $record): float => max(0, (float) $record->total - (float) $record->paid))
+                    ->color(fn (float $state): string => $state > 0 ? 'danger' : 'success')
                     ->toggleable(),
                 TextColumn::make('notes')
                     ->label('Keterangan')
@@ -206,6 +310,12 @@ class SaleResource extends Resource
                         'lunas' => 'Lunas',
                         'tak_tertagih' => 'Tak Tertagih',
                     ]),
+                SelectFilter::make('customer_type')
+                    ->label('Tipe Pelanggan')
+                    ->options([
+                        'Corporate' => 'Corporate',
+                        'Retail' => 'Retail',
+                    ]),
             ])
             ->recordActions([
                 BayarAction::make('bayar')
@@ -214,10 +324,25 @@ class SaleResource extends Resource
                     ->walletSettingKey('wallet_penjualan_id')
                     ->namePrefix('Pembayaran')
                     ->coaCategory('pemasukan')
-                    ->visible(fn (Sale $record): bool => $record->sisa > 0),
-                CetakInvoiceAction::make()->type('sale'),
-                EditAction::make()->iconButton(),
-                DeleteAction::make()->iconButton(),
+                    ->visible(fn (Sale $record): bool => ! (int) $record->is_retail && max(0, (float) $record->total - (float) $record->paid) > 0),
+                BayarAction::make('bayar_retail')
+                    ->linkColumn('retail_invoice_id')
+                    ->coaSettingKey('coa_retail_id')
+                    ->walletSettingKey('wallet_retail_id')
+                    ->namePrefix('Pembayaran Retail')
+                    ->coaCategory('pemasukan')
+                    ->visible(fn (Sale $record): bool => (int) $record->is_retail === 1 && max(0, (float) $record->total - (float) $record->paid) > 0),
+                CetakInvoiceAction::make()
+                    ->type('sale')
+                    ->visible(fn (Sale $record): bool => ! (int) $record->is_retail),
+                CetakInvoiceAction::make('cetak_retail')
+                    ->type('retail')
+                    ->keyColumn('retail_invoice_id')
+                    ->visible(fn (Sale $record): bool => (int) $record->is_retail === 1),
+                EditAction::make()->iconButton()
+                    ->visible(fn (Sale $record): bool => ! (int) $record->is_retail),
+                DeleteAction::make()->iconButton()
+                    ->visible(fn (Sale $record): bool => ! (int) $record->is_retail),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

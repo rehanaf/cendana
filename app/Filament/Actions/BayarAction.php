@@ -2,10 +2,12 @@
 
 namespace App\Filament\Actions;
 
+use App\Filament\Actions\Concerns\ResolvesTransactionContext;
 use App\Models\Coa;
 use App\Models\Setting;
 use App\Models\Transaction;
 use App\Models\Wallet;
+use App\Services\WebhookService;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithRecord;
 use Filament\Forms\Components\DatePicker;
@@ -18,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
 class BayarAction extends Action
 {
     use InteractsWithRecord;
+    use ResolvesTransactionContext;
 
     protected string $linkColumn = '';
 
@@ -87,18 +90,22 @@ class BayarAction extends Action
                     return;
                 }
 
-                                $transaction = Transaction::create([
+                $linkColumn = $this->linkColumn;
+                $linkValue = $this->linkedRecordId($record, $linkColumn);
+                $contextRecord = $this->linkedContextRecord($record, $linkColumn, $linkValue);
+
+                $transaction = Transaction::create([
                     'name' => $record->invoice_no,
                     'user_id' => auth()->id(),
                     'wallet_id' => $data['wallet_id'],
                     'coa_id' => $data['coa_id'],
                     'amount' => $data['amount'],
-                    'description' => $data['description'] ?: ($this->namePrefix . ' ' . $record->invoice_no),
+                    'description' => $data['description'] ?: $this->paymentDescriptionFor($record, $this->linkColumn),
                     'transaction_date' => $data['transaction_date'],
-                    $this->linkColumn => $record->getKey(),
+                    $linkColumn => $linkValue,
                 ]);
 
-                $this->dispatchWebhook($transaction, $record);
+                $this->dispatchWebhook($transaction, $contextRecord);
             });
     }
 
@@ -109,26 +116,24 @@ class BayarAction extends Action
         return [
             Select::make('coa_id')
                 ->label('Akun')
-                ->options(fn (): array =>
-                    Coa::where('is_active', true)
-                        ->where('category', $this->coaCategory)
-                        ->orderBy('code')
-                        ->get()
-                        ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code . ' - ' . $coa->name])
-                        ->toArray()
+                ->options(fn (): array => Coa::where('is_active', true)
+                    ->where('category', $this->coaCategory)
+                    ->orderBy('code')
+                    ->get()
+                    ->mapWithKeys(fn (Coa $coa): array => [$coa->id => $coa->code.' - '.$coa->name])
+                    ->toArray()
                 )
                 ->default($defaultCoa ?: null)
                 ->searchable()
                 ->required(),
             Select::make('wallet_id')
                 ->label('Dompet')
-                ->options(fn (): array =>
-                    Wallet::where('is_active', true)
-                        ->orderBy('name')
-                        ->get()
-                        ->keyBy('id')
-                        ->map(fn (Wallet $w): string => $w->name . ' (Rp ' . number_format($w->balance, 0, ',', '.') . ')')
-                        ->toArray()
+                ->options(fn (): array => Wallet::where('is_active', true)
+                    ->orderBy('name')
+                    ->get()
+                    ->keyBy('id')
+                    ->map(fn (Wallet $w): string => $w->name.' (Rp '.number_format($w->balance, 0, ',', '.').')')
+                    ->toArray()
                 )
                 ->default(fn (): ?int => Setting::getWalletId($this->walletSettingKey))
                 ->searchable()
@@ -140,12 +145,12 @@ class BayarAction extends Action
                 ->required()
                 ->prefix('Rp')
                 ->suffixAction(
-                    \Filament\Actions\Action::make('isiSisa')
+                    Action::make('isiSisa')
                         ->label('Isi Sisa')
                         ->icon('heroicon-m-arrow-down-circle')
                         ->color('warning')
                         ->action(function (Set $set): void {
-                            $set('amount', $this->getRecord()?->sisa ?? 0);
+                            $set('amount', $this->remainingForRecord($this->getRecord()));
                         })
                 ),
             DatePicker::make('transaction_date')
@@ -161,7 +166,7 @@ class BayarAction extends Action
 
     protected function dispatchWebhook(Transaction $transaction, Model $record): Transaction
     {
-        app(\App\Services\WebhookService::class)->dispatch($transaction, $record);
+        app(WebhookService::class)->dispatch($transaction, $record);
 
         return $transaction;
     }

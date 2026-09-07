@@ -74,8 +74,8 @@ class LaporanPenjualanPerPelanggan extends Page
         $sisa = $rows->sum(fn ($r) => (float) $r->sisa);
 
         $corporateRows = $this->getSourceRows(['Penjualan', 'Langganan']);
-        $penjualanCorporate = $corporateRows->where('sumber', 'Penjualan')->sum(fn ($r) => (float) $r->total);
-        $langgananCorporate = $corporateRows->where('sumber', 'Langganan')->sum(fn ($r) => (float) $r->total);
+        $penjualanCorporate = $corporateRows->where('sumber_label', 'Penjualan')->sum(fn ($r) => (float) $r->total);
+        $langgananCorporate = $corporateRows->where('sumber_label', 'Langganan')->sum(fn ($r) => (float) $r->total);
         $retailRows = $this->getSourceRows(['Retail']);
         $langgananRetail = $retailRows->sum(fn ($r) => (float) $r->total);
 
@@ -112,7 +112,7 @@ class LaporanPenjualanPerPelanggan extends Page
 
         $query = Transaction::query()
             ->fromSub($union, 'penjualan')
-            ->select(['nama', 'sumber', 'total', 'paid']);
+            ->select(['nama', 'sumber_label', 'total', 'paid']);
 
         return $this->applyModeFilter($query, 'date')->get();
     }
@@ -180,7 +180,7 @@ class LaporanPenjualanPerPelanggan extends Page
             ->leftJoin('corporate_customers as c', 'c.id', '=', 's.customer_id')
             ->select([
                 DB::raw('COALESCE(c.name, \'-\') as nama'),
-                DB::raw("'Penjualan' as sumber"),
+                DB::raw("'Penjualan' as sumber_label"),
                 's.total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.sale_id = s.id) as paid'),
                 's.date',
@@ -193,7 +193,7 @@ class LaporanPenjualanPerPelanggan extends Page
             ->leftJoin('corporate_customers as c', 'c.id', '=', 'si.customer_id')
             ->select([
                 DB::raw('COALESCE(c.name, \'-\') as nama'),
-                DB::raw("'Langganan' as sumber"),
+                DB::raw("'Langganan' as sumber_label"),
                 'si.total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.subscription_invoice_id = si.id) as paid'),
                 'si.date',
@@ -206,7 +206,7 @@ class LaporanPenjualanPerPelanggan extends Page
             ->leftJoin('retail_customers as rc', 'rc.id', '=', 'ri.retail_customer_id')
             ->select([
                 DB::raw('COALESCE(rc.name, \'-\') as nama'),
-                DB::raw("'Retail' as sumber"),
+                DB::raw("'Retail' as sumber_label"),
                 'ri.total',
                 DB::raw('(SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.retail_invoice_id = ri.id) as paid'),
                 'ri.date',

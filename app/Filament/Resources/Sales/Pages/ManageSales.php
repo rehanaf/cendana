@@ -5,10 +5,9 @@ namespace App\Filament\Resources\Sales\Pages;
 use App\Filament\Resources\Sales\SaleResource;
 use App\Models\Setting;
 use App\Models\Transaction;
+use App\Support\PaymentDescription;
 use Filament\Actions\CreateAction;
-use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ManageRecords;
-use Illuminate\Support\Arr;
 
 class ManageSales extends ManageRecords
 {
@@ -37,7 +36,7 @@ class ManageSales extends ManageRecords
                             'wallet_id' => $sale->wallet_id,
                             'coa_id' => $sale->coa_id,
                             'amount' => $sale->total,
-                            'description' => 'Pembayaran ' . $sale->invoice_no . ' - ' . ($sale->customer?->name ?? ''),
+                            'description' => PaymentDescription::make('Pembayaran', 'penjualan', $sale->notes, $sale->customer?->name),
                             'transaction_date' => $sale->date,
                             'sale_id' => $sale->id,
                         ]);

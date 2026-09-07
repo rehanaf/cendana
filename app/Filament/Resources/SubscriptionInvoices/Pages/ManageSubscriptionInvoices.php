@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Models\Transaction;
 use App\Services\SubscriptionInvoiceService;
 use App\Services\WebhookService;
+use App\Support\PaymentDescription;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Notifications\Notification;
@@ -56,7 +57,7 @@ class ManageSubscriptionInvoices extends ManageRecords
                             'wallet_id' => $invoice->wallet_id,
                             'coa_id' => $invoice->coa_id,
                             'amount' => $invoice->total,
-                            'description' => 'Pembayaran ' . $invoice->invoice_no . ' - ' . ($invoice->customer?->name ?? ''),
+                            'description' => PaymentDescription::make('Pembayaran Langganan', 'langganan', $invoice->notes, $invoice->customer?->name),
                             'transaction_date' => $invoice->date,
                             'subscription_invoice_id' => $invoice->id,
                         ]);

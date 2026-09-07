@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Purchases\Pages;
 use App\Filament\Resources\Purchases\PurchaseResource;
 use App\Models\Setting;
 use App\Models\Transaction;
+use App\Support\PaymentDescription;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
 
@@ -35,7 +36,7 @@ class ManagePurchases extends ManageRecords
                             'wallet_id' => $purchase->wallet_id,
                             'coa_id' => $purchase->coa_id,
                             'amount' => $purchase->total,
-                            'description' => 'Pembayaran ' . $purchase->invoice_no . ' - ' . ($purchase->vendor?->name ?? ''),
+                            'description' => PaymentDescription::make('Pembayaran', 'pembelian', $purchase->notes, $purchase->vendor?->name),
                             'transaction_date' => $purchase->date,
                             'purchase_id' => $purchase->id,
                         ]);

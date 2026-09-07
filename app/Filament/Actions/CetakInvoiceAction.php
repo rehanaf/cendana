@@ -3,7 +3,11 @@
 namespace App\Filament\Actions;
 
 use App\Models\InvoiceTemplate;
+use App\Models\Purchase;
+use App\Models\RetailInvoice;
+use App\Models\Sale;
 use App\Models\Setting;
+use App\Models\SubscriptionInvoice;
 use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithRecord;
 use Filament\Forms\Components\Select;
@@ -16,6 +20,8 @@ class CetakInvoiceAction extends Action
 
     protected string $type = '';
 
+    protected string $keyColumn = '';
+
     public static function getDefaultName(): ?string
     {
         return 'cetak-invoice';
@@ -26,6 +32,24 @@ class CetakInvoiceAction extends Action
         $this->type = $type;
 
         return $this;
+    }
+
+    public function keyColumn(string $column): static
+    {
+        $this->keyColumn = $column;
+
+        return $this;
+    }
+
+    protected function typeToModelClass(string $type): ?string
+    {
+        return match ($type) {
+            'retail' => RetailInvoice::class,
+            'subscription' => SubscriptionInvoice::class,
+            'sale' => Sale::class,
+            'purchase' => Purchase::class,
+            default => null,
+        };
     }
 
     protected function templateSettingKey(): ?string
@@ -67,6 +91,22 @@ class CetakInvoiceAction extends Action
                     ->default(fn (Model $record): ?string => $record->notes ?? null),
             ])
             ->action(function (Model $record, array $data) {
+                $modelClass = $this->typeToModelClass($this->type);
+
+                if ($modelClass === null) {
+                    return;
+                }
+
+                $id = $this->keyColumn && $record->getAttribute($this->keyColumn) !== null
+                    ? $record->getAttribute($this->keyColumn)
+                    : $record->getKey();
+
+                $record = $modelClass::query()->find($id);
+
+                if (! $record) {
+                    return;
+                }
+
                 if ($record->exists && \Schema::hasColumn($record->getTable(), 'notes')) {
                     $record->notes = $data['keterangan'] ?? null;
                     $record->save();
