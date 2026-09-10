@@ -105,8 +105,8 @@ class PurchaseResource extends Resource
                     ->searchable()
                     ->visible(fn (Get $get): bool => (bool) $get('pay_now')),
                 Select::make('coa_id')
-                    ->label('Akun Pengeluaran')
-                    ->helperText('Akun untuk transaksi lunas')
+                    ->label('Akun Pengeluaran / COA')
+                    ->helperText('Akun pembelian untuk nota ini.')
                     ->options(fn (): array => Coa::where('is_active', true)
                         ->where('category', 'pengeluaran')
                         ->orderBy('code')
@@ -115,8 +115,7 @@ class PurchaseResource extends Resource
                         ->toArray()
                     )
                     ->default(fn (): ?int => (int) Setting::get('coa_pembelian_id') ?: null)
-                    ->searchable()
-                    ->visible(fn (Get $get): bool => (bool) $get('pay_now')),
+                    ->searchable(),
                 Textarea::make('notes')
                     ->label('Keterangan')
                     ->rows(3)

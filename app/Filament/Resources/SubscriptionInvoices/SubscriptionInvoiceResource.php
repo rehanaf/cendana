@@ -114,8 +114,8 @@ class SubscriptionInvoiceResource extends Resource
                     ->searchable()
                     ->visible(fn (Get $get): bool => (bool) $get('pay_now')),
                 Select::make('coa_id')
-                    ->label('Akun Pemasukan')
-                    ->helperText('Akun untuk transaksi lunas')
+                    ->label('Akun Pemasukan / COA')
+                    ->helperText('Akun langganan untuk tagihan ini.')
                     ->options(fn (): array => Coa::where('is_active', true)
                         ->where('category', 'pemasukan')
                         ->orderBy('code')
@@ -124,8 +124,7 @@ class SubscriptionInvoiceResource extends Resource
                         ->toArray()
                     )
                     ->default(fn (): ?int => (int) Setting::get('coa_langganan_id') ?: null)
-                    ->searchable()
-                    ->visible(fn (Get $get): bool => (bool) $get('pay_now')),
+                    ->searchable(),
                 Textarea::make('notes')
                     ->label('Keterangan')
                     ->rows(3)

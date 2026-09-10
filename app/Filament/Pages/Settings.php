@@ -631,6 +631,88 @@ class Settings extends Page
                 ->modalHeading('Contoh Penggunaan Webhook')
                 ->modalWidth('3xl')
                 ->modalContent(fn (): View => view('filament.webhook-example')),
+            Action::make('reapplyInvoiceCoas')
+                ->label('Sesuaikan Akun Invoice Lama')
+                ->icon('heroicon-o-arrow-path')
+                ->color('warning')
+                ->requiresConfirmation()
+                ->modalHeading('Sesuaikan Akun COA Invoice Lama')
+                ->modalDescription('Semua invoice penjualan, langganan, dan retail yang AKUANNYA BELUM SESUAI dengan default di atas akan diperbarui (berikut transaksi pembayarannya).')
+                ->modalSubmitActionLabel('Ya, Sesuaikan')
+                ->visible(fn (): bool => auth()->user()?->isAdmin() ?? false)
+                ->action(function (): void {
+                    $result = DB::transaction(function (): array {
+                        $mappings = [
+                            'penjualan' => [
+                                'model' => Sale::class,
+                                'coa' => (int) $this->coa_penjualan_id,
+                                'fk' => 'sale_id',
+                            ],
+                            'langganan' => [
+                                'model' => SubscriptionInvoice::class,
+                                'coa' => (int) $this->coa_langganan_id,
+                                'fk' => 'subscription_invoice_id',
+                            ],
+                            'retail' => [
+                                'model' => RetailInvoice::class,
+                                'coa' => (int) $this->coa_retail_id,
+                                'fk' => 'retail_invoice_id',
+                            ],
+                        ];
+
+                        $updated = [];
+                        $skipped = [];
+
+                        foreach ($mappings as $key => $cfg) {
+                            $coaId = $cfg['coa'];
+
+                            if (! $coaId) {
+                                $skipped[] = ucfirst($key);
+
+                                continue;
+                            }
+
+                            $oldCoaIds = $cfg['model']::query()
+                                ->where('coa_id', '!=', $coaId)
+                                ->pluck('id');
+
+                            $count = $cfg['model']::query()
+                                ->where('coa_id', '!=', $coaId)
+                                ->update(['coa_id' => $coaId, 'updated_at' => now()]);
+
+                            if ($oldCoaIds->isNotEmpty()) {
+                                Transaction::query()
+                                    ->whereIn($cfg['fk'], $oldCoaIds->all())
+                                    ->update(['coa_id' => $coaId]);
+                            }
+
+                            $updated[$key] = $count;
+                        }
+
+                        return [$updated, $skipped];
+                    });
+
+                    [$updated, $skipped] = $result;
+
+                    $labels = collect($updated)->map(fn (int $n, string $k): string => ucfirst($k).': '.$n)->implode(', ');
+
+                    if ($labels === '') {
+                        Notification::make()
+                            ->info()
+                            ->title('Tidak ada yang diubah')
+                            ->body('Semua invoice sudah sesuai dengan akun default saat ini.')
+                            ->send();
+
+                        return;
+                    }
+
+                    Notification::make()
+                        ->success()
+                        ->title('Akun COA berhasil disesuaikan')
+                        ->body('Diperbarui — '.$labels
+                            .($skipped ? '. Dilewati (akun default kosong): '.implode(', ', $skipped).' — isi COA default lalu coba lagi.' : ''))
+                        ->send();
+                }),
             Action::make('save')
                 ->label('Simpan')
                 ->action('save'),

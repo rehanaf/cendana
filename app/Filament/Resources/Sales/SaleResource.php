@@ -200,8 +200,8 @@ class SaleResource extends Resource
                     ->searchable()
                     ->visible(fn (Get $get): bool => (bool) $get('pay_now')),
                 Select::make('coa_id')
-                    ->label('Akun Pemasukan')
-                    ->helperText('Akun untuk transaksi lunas')
+                    ->label('Akun Pemasukan / COA')
+                    ->helperText('Akun penjualan untuk nota ini.')
                     ->options(fn (): array => Coa::where('is_active', true)
                         ->where('category', 'pemasukan')
                         ->orderBy('code')
@@ -210,8 +210,7 @@ class SaleResource extends Resource
                         ->toArray()
                     )
                     ->default(fn (): ?int => (int) Setting::get('coa_penjualan_id') ?: null)
-                    ->searchable()
-                    ->visible(fn (Get $get): bool => (bool) $get('pay_now')),
+                    ->searchable(),
                 TextInput::make('marketing_cost')
                     ->label('Biaya Marketing')
                     ->numeric()
