@@ -8,6 +8,7 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\EmbeddedTable;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -62,6 +63,8 @@ abstract class BaseReportPage extends Page implements HasTable
                 Section::make(static::reportLabel())
                     ->afterHeader($this->reportFilterComponents())
                     ->schema([
+                        View::make('components.report-loading')
+                            ->viewData(['targets' => $this->getLoadingTargets()]),
                         $this->getStatsGrid(),
                         EmbeddedTable::make(),
                     ]),
@@ -86,6 +89,11 @@ abstract class BaseReportPage extends Page implements HasTable
     protected function money(float $value): string
     {
         return 'Rp ' . number_format($value, 0, ',', '.');
+    }
+
+    protected function getLoadingTargets(): string
+    {
+        return 'mode, date, reportMonth, reportYear, periodStart, periodEnd';
     }
 
     protected function makeTable(): Table

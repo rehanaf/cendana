@@ -73,7 +73,6 @@ class LaporanLabaRugi extends BaseReportPage
             ->from('transactions as t')
             ->join('coas as c', 'c.id', '=', 't.coa_id')
             ->where('c.type', 'income')
-            ->where('c.is_active', true)
             ->when($this->mode === 'harian' && $this->date, fn ($q) => $q->whereDate('t.transaction_date', $this->date))
             ->when($this->mode === 'bulanan', fn ($q) => $q
                 ->whereYear('t.transaction_date', (int) $this->reportYear)
@@ -89,7 +88,6 @@ class LaporanLabaRugi extends BaseReportPage
             ->from('transactions as t')
             ->join('coas as c', 'c.id', '=', 't.coa_id')
             ->where('c.type', 'cogs')
-            ->where('c.is_active', true)
             ->when($this->mode === 'harian' && $this->date, fn ($q) => $q->whereDate('t.transaction_date', $this->date))
             ->when($this->mode === 'bulanan', fn ($q) => $q
                 ->whereYear('t.transaction_date', (int) $this->reportYear)
@@ -105,7 +103,6 @@ class LaporanLabaRugi extends BaseReportPage
             ->from('transactions as t')
             ->join('coas as c', 'c.id', '=', 't.coa_id')
             ->whereIn('c.type', ['expense', 'tax'])
-            ->where('c.is_active', true)
             ->when($this->mode === 'harian' && $this->date, fn ($q) => $q->whereDate('t.transaction_date', $this->date))
             ->when($this->mode === 'bulanan', fn ($q) => $q
                 ->whereYear('t.transaction_date', (int) $this->reportYear)
@@ -121,7 +118,6 @@ class LaporanLabaRugi extends BaseReportPage
             ->from('transactions as t')
             ->join('coas as c', 'c.id', '=', 't.coa_id')
             ->whereIn('c.type', ['income', 'cogs', 'expense', 'tax'])
-            ->where('c.is_active', true)
             ->select([
                 'c.code as kode',
                 'c.name as nama',

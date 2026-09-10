@@ -67,6 +67,11 @@ class LaporanDaftarPembelian extends BaseReportPage
         ];
     }
 
+    protected function getLoadingTargets(): string
+    {
+        return parent::getLoadingTargets() . ', walletId, coaId';
+    }
+
     public function getStatsGrid(): Grid
     {
         $rows = $this->getQuery(applyWallet: false)->get();
@@ -111,7 +116,6 @@ class LaporanDaftarPembelian extends BaseReportPage
         return DB::table('transactions as t')
             ->leftJoin('coas as co', 'co.id', '=', 't.coa_id')
             ->where('co.type', 'cogs')
-            ->where('co.is_active', true)
             ->whereNull('t.purchase_id')
             ->whereNull('t.sale_id')
             ->whereNull('t.subscription_invoice_id')

@@ -11,6 +11,7 @@ use Filament\Schemas\Components\EmbeddedTable;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
@@ -107,6 +108,8 @@ class LaporanPembelian extends Page implements HasTable
                             ->afterStateUpdated(fn () => $this->dispatch('refresh-table')),
                     ])
                     ->schema([
+                        View::make('components.report-loading')
+                            ->viewData(['targets' => 'mode, date, reportMonth, reportYear']),
                         $this->getStatsGrid(),
                         EmbeddedTable::make(),
                     ]),
