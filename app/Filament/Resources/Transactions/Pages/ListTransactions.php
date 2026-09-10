@@ -15,9 +15,15 @@ class ListTransactions extends ManageRecords
 {
     protected static string $resource = TransactionResource::class;
 
-    public function mount(): void
+    public bool $hasAppliedColumnDefaultsOnLoad = false;
+
+    public function rendering(): void
     {
-        parent::mount();
+        if ($this->hasAppliedColumnDefaultsOnLoad) {
+            return;
+        }
+
+        $this->hasAppliedColumnDefaultsOnLoad = true;
 
         $this->applyColumnDefaultsForActiveTab();
     }
