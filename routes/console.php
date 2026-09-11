@@ -37,3 +37,14 @@ Schedule::command('retail:bill')
         return (bool) Setting::get('retail_auto_generate', false);
     })
     ->monthlyOn($retailGenerateDay, '00:10');
+
+Schedule::command('backup:clean')
+    ->daily()
+    ->withoutOverlapping();
+
+Schedule::command('backup:run', [
+    '--only-db' => true,
+    '--disable-notifications' => true,
+])
+    ->dailyAt('23:00')
+    ->withoutOverlapping();
