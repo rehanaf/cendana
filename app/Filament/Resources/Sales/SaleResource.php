@@ -163,7 +163,7 @@ class SaleResource extends Resource
                 TextInput::make('invoice_no')
                     ->label('No. Nota')
                     ->required()
-                    ->unique(ignoreRecord: true)
+                    ->scopedUnique(Sale::class, 'invoice_no', ignoreRecord: true)
                     ->maxLength(255),
                 Select::make('customer_id')
                     ->label('Pelanggan')

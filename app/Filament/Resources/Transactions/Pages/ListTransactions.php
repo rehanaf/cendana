@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Transactions\Pages;
 
 use App\Filament\Resources\Transactions\TransactionResource;
 use App\Filament\Resources\Transactions\TransactionsColumnDefaults;
+use App\Filament\Resources\Transactions\Tables\TransactionsTable;
 use App\Models\Wallet;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
@@ -95,7 +96,7 @@ class ListTransactions extends ManageRecords
             'all' => Tab::make('Semua'),
             ...Wallet::orderBy('name')->get()->mapWithKeys(fn ($wallet) => [
                 'wallet_'.$wallet->id => Tab::make($wallet->name)
-                    ->modifyQueryUsing(fn (Builder $query) => $query->where('wallet_id', $wallet->id)),
+                    ->modifyQueryUsing(fn (Builder $query) => TransactionsTable::applyWalletTabQuery($query, $wallet)),
             ]),
         ];
     }

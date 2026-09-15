@@ -23,6 +23,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -41,7 +42,13 @@ class TransactionsTable
                         ->whereNull('purchase_id')
                         ->whereNull('subscription_invoice_id')
                         ->whereNull('retail_invoice_id')
-                        ->whereNull('transaction_reference_id');
+                        ->whereNull('transaction_reference_id')
+                        ->select([
+                            DB::raw('transactions.*'),
+                            DB::raw('0 as is_ref'),
+                            DB::raw('NULL as category'),
+                            DB::raw('NULL as ref_net'),
+                        ]);
                 }
 
                 return static::applyQueryFilters($query, $livewire);
@@ -144,6 +151,12 @@ class TransactionsTable
                     })
                     ->sortable()
                     ->toggleable(),
+                TextColumn::make('saldo')
+                    ->label('Total')
+                    ->money('IDR', decimalPlaces: 0)
+                    ->placeholder('-')
+                    ->alignEnd()
+                    ->visible(fn (HasTable $livewire): bool => str_starts_with((string) ($livewire->activeTab ?? null), 'wallet_')),
             ])
             ->filters([
                 Filter::make('tampilkanReferensi')
@@ -393,6 +406,34 @@ class TransactionsTable
             ->toArray();
     }
 
+    /**
+     * Terapkan filter tab dompet (asal ATAU tujuan) sekaligus hitung saldo
+     * berjalan per baris lewat window function, supaya tampil seperti mutasi bank.
+     */
+    public static function applyWalletTabQuery(Builder $query, Wallet $wallet): Builder
+    {
+        $walletId = (int) $wallet->getKey();
+
+        $signed = "CASE
+            WHEN transactions.is_ref = 1 AND transactions.to_wallet_id = {$walletId} THEN -transactions.ref_net
+            WHEN transactions.is_ref = 1 AND transactions.wallet_id = {$walletId} THEN transactions.ref_net
+            WHEN transactions.to_wallet_id = {$walletId} THEN transactions.amount
+            WHEN transactions.wallet_id = {$walletId} AND COALESCE(c.category, transactions.category) = 'pemasukan' THEN transactions.amount
+            WHEN transactions.wallet_id = {$walletId} THEN -transactions.amount
+            ELSE 0
+        END";
+
+        return Transaction::query()
+            ->fromSub($query->getQuery(), 'transactions')
+            ->select(['transactions.*', DB::raw("SUM({$signed}) OVER (ORDER BY transactions.transaction_date ASC, transactions.id ASC) AS saldo")])
+            ->leftJoin('coas as c', 'c.id', '=', 'transactions.coa_id')
+            ->where(function (Builder $q) use ($walletId): void {
+                $q->where('transactions.wallet_id', $walletId)
+                    ->orWhere('transactions.to_wallet_id', $walletId);
+            })
+            ->with(['sale', 'purchase', 'subscriptionInvoice', 'retailInvoice']);
+    }
+
     protected static function applyQueryFilters(Builder $query, \Livewire\Component $livewire): Builder
     {
         $filters = $livewire->tableFilters ?? [];
@@ -418,7 +459,12 @@ class TransactionsTable
                 default => null,
             };
 
-            return $query;
+            return $query->select([
+                    DB::raw('transactions.*'),
+                    DB::raw('0 as is_ref'),
+                    DB::raw('NULL as category'),
+                    DB::raw('NULL as ref_net'),
+                ]);
         }
 
         $plain = (clone $query)
@@ -457,7 +503,7 @@ class TransactionsTable
                 'transactions.subscription_invoice_id',
                 'transactions.retail_invoice_id',
             ])
-            ->selectRaw('0 as is_ref, NULL as coa_codes, NULL as coa_names, NULL as coa_categories, NULL as transaction_reference_id');
+            ->selectRaw('0 as is_ref, NULL as coa_codes, NULL as coa_names, NULL as coa_categories, NULL as transaction_reference_id, NULL as category, NULL as ref_net');
 
         $refs = Transaction::query()
             ->from('transactions as t')
@@ -474,6 +520,8 @@ class TransactionsTable
             ->selectRaw("REPLACE(GROUP_CONCAT(DISTINCT c.name), ',', ', ') as coa_names")
             ->selectRaw("REPLACE(GROUP_CONCAT(DISTINCT c.category), ',', ', ') as coa_categories")
             ->selectRaw('t.transaction_reference_id')
+            ->selectRaw('MIN(c.category) as category')
+            ->selectRaw("SUM(CASE WHEN c.category = 'pemasukan' THEN t.amount ELSE -t.amount END) as ref_net")
             ->groupBy('t.transaction_reference_id', 'tr.reference_no', 'tr.description');
 
         if (in_array($kategori, ['pemasukan', 'pengeluaran', 'transfer'])) {

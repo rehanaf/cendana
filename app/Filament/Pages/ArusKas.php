@@ -63,7 +63,7 @@ class ArusKas extends Page implements HasTable
             'all' => Tab::make('Semua'),
             ...Wallet::orderBy('name')->get()->mapWithKeys(fn (Wallet $wallet) => [
                 'wallet_' . $wallet->id => Tab::make($wallet->name)
-                    ->modifyQueryUsing(fn (Builder $query) => $query->where('wallet_id', $wallet->id)),
+                    ->modifyQueryUsing(fn (Builder $query) => TransactionsTable::applyWalletTabQuery($query, $wallet)),
             ]),
         ];
     }
