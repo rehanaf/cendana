@@ -14,8 +14,8 @@ class CompanyHomeTest extends TestCase
         $response->assertSee('Cendana Solusindo');
         $response->assertSee('theme-toggle');
         $response->assertSee('/admin');
-        foreach (['Direktur', 'General Manager', 'HR Manager', 'Finance', 'Sales', 'Technician'] as $role) {
-            $response->assertSee($role);
+        foreach (['Direksi', 'General Manager', 'Human Resource Dept', 'Finance Dept', 'Marketing & Sales Dept', 'Operational Dept'] as $dept) {
+            $response->assertSee($dept);
         }
         $response->assertDontSee('Administrator');
     }

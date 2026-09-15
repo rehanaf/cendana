@@ -96,7 +96,7 @@ class LaporanDaftarPembelianTest extends TestCase
         $this->assertCount(2, $page->exposeQuery()->get());
     }
 
-    public function test_daftar_pembelian_hanya_ambil_coa_hpp_aktif(): void
+    public function test_daftar_pembelian_ikut_sertakan_transaksi_coa_nonaktif(): void
     {
         $hppCoa = Coa::create([
             'code' => '5-1000',
@@ -136,9 +136,12 @@ class LaporanDaftarPembelianTest extends TestCase
 
         $rows = $page->exposeQuery()->get();
 
-        $this->assertCount(1, $rows);
-        $this->assertEquals('Pembelian Barang', $rows->first()->coa_name);
-        $this->assertEquals('Pengeluaran HPP', $rows->first()->sumber_label);
-        $this->assertEquals('HPP Aktif', $rows->first()->invoice_no);
+        $this->assertCount(2, $rows, 'Daftar Pembelian tetap menampilkan transaksi HPP dari akun COA yang sudah dinonaktifkan.');
+        $this->assertCount(2, $rows->where('sumber_label', 'Pengeluaran HPP'));
+        $this->assertEqualsCanonicalizing(
+            ['Pembelian Barang', 'Beban Nonaktif'],
+            $rows->pluck('coa_name')->all(),
+        );
+        $this->assertTrue($rows->contains(fn ($r) => $r->invoice_no === 'HPP Aktif'));
     }
 }
