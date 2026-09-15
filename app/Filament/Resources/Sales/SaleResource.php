@@ -121,7 +121,6 @@ class SaleResource extends Resource
         $union = $sales->unionAll($retail);
 
         $query = (new Sale)
-            ->setTable('penjualan')
             ->newQuery()
             ->fromSub($union, 'penjualan')
             ->select([
@@ -270,6 +269,12 @@ class SaleResource extends Resource
                     ->money('IDR', decimalPlaces: 0)
                     ->sortable()
                     ->toggleable(),
+                TextColumn::make('marketing_cost')
+                    ->label('Biaya Marketing')
+                    ->money('IDR', decimalPlaces: 0)
+                    ->placeholder('-')
+                    ->toggleable()
+                    ->visible(fn (?Sale $record): bool => $record !== null && ! (int) $record->is_retail),
                 TextColumn::make('paid')
                     ->label('Dibayar')
                     ->money('IDR', decimalPlaces: 0)
@@ -355,7 +360,8 @@ class SaleResource extends Resource
                         ->label('Hapus yang Dipilih'),
                 ]),
             ])
-            ->defaultSort('date', 'desc');
+            ->defaultSort('date', 'desc')
+            ->defaultKeySort(false);
     }
 
     public static function getPages(): array

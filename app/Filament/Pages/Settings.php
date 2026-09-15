@@ -39,6 +39,8 @@ class Settings extends Page
 
     public ?int $wallet_pembelian_id = null;
 
+    public ?int $coa_marketing_id = null;
+
     public ?int $coa_langganan_id = null;
 
     public ?int $wallet_langganan_id = null;
@@ -119,6 +121,7 @@ class Settings extends Page
         $this->coa_penjualan_id = (int) Setting::get('coa_penjualan_id');
         $this->wallet_penjualan_id = (int) Setting::get('wallet_penjualan_id');
         $this->coa_pembelian_id = (int) Setting::get('coa_pembelian_id');
+        $this->coa_marketing_id = (int) Setting::get('coa_marketing_id');
         $this->wallet_pembelian_id = (int) Setting::get('wallet_pembelian_id');
 
         $this->coa_langganan_id = (int) Setting::get('coa_langganan_id');
@@ -244,6 +247,11 @@ class Settings extends Page
                             ->label('Dompet Pembelian')
                             ->options(fn (): array => $this->walletOptions())
                             ->searchable(),
+                        Select::make('coa_marketing_id')
+                            ->label('COA Biaya Marketing')
+                            ->helperText('Akun pengeluaran untuk biaya marketing (komisi) pada nota penjualan.')
+                            ->options(fn (): array => $this->coaOptions('pengeluaran'))
+                            ->searchable(),
                     ])
                     ->columns(2),
                 Section::make('Tagihan / Pembayaran Langganan (Corporate)')
@@ -364,6 +372,7 @@ class Settings extends Page
         Setting::set('wallet_penjualan_id', $this->wallet_penjualan_id ?: '');
         Setting::set('coa_pembelian_id', $this->coa_pembelian_id ?: '');
         Setting::set('wallet_pembelian_id', $this->wallet_pembelian_id ?: '');
+        Setting::set('coa_marketing_id', $this->coa_marketing_id ?: '');
 
         Setting::set('coa_langganan_id', $this->coa_langganan_id ?: '');
         Setting::set('wallet_langganan_id', $this->wallet_langganan_id ?: '');

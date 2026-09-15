@@ -20,6 +20,7 @@ class Transaction extends Model
         'transaction_reference_id',
         'transaction_date',
         'sale_id',
+        'marketing_for_sale_id',
         'purchase_id',
         'subscription_invoice_id',
         'retail_invoice_id',
