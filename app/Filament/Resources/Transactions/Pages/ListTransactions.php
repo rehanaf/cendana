@@ -4,13 +4,11 @@ namespace App\Filament\Resources\Transactions\Pages;
 
 use App\Filament\Resources\Transactions\TransactionResource;
 use App\Filament\Resources\Transactions\TransactionsColumnDefaults;
-use App\Filament\Resources\Transactions\Tables\TransactionsTable;
 use App\Models\Wallet;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Schema;
-use Illuminate\Database\Eloquent\Builder;
 
 class ListTransactions extends ManageRecords
 {
@@ -95,8 +93,7 @@ class ListTransactions extends ManageRecords
         return [
             'all' => Tab::make('Semua'),
             ...Wallet::orderBy('name')->get()->mapWithKeys(fn ($wallet) => [
-                'wallet_'.$wallet->id => Tab::make($wallet->name)
-                    ->modifyQueryUsing(fn (Builder $query) => TransactionsTable::applyWalletTabQuery($query, $wallet)),
+                'wallet_'.$wallet->id => Tab::make($wallet->name),
             ]),
         ];
     }

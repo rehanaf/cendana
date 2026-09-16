@@ -16,7 +16,6 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 
 class ArusKas extends Page implements HasTable
 {
@@ -53,7 +52,6 @@ class ArusKas extends Page implements HasTable
     {
         return TransactionsTable::configure($table, manualOnly: true)
             ->query(Transaction::query())
-            ->modifyQueryUsing($this->modifyQueryWithActiveTab(...))
             ->reorderable(false);
     }
 
@@ -62,8 +60,7 @@ class ArusKas extends Page implements HasTable
         return [
             'all' => Tab::make('Semua'),
             ...Wallet::orderBy('name')->get()->mapWithKeys(fn (Wallet $wallet) => [
-                'wallet_' . $wallet->id => Tab::make($wallet->name)
-                    ->modifyQueryUsing(fn (Builder $query) => TransactionsTable::applyWalletTabQuery($query, $wallet)),
+                'wallet_' . $wallet->id => Tab::make($wallet->name),
             ]),
         ];
     }

@@ -36,8 +36,8 @@ class TransactionsTable
     {
         $table
             ->modifyQueryUsing(function (Builder $query, \Livewire\Component $livewire) use ($manualOnly): Builder {
-                if ($manualOnly) {
-                    return $query
+                $result = $manualOnly
+                    ? $query
                         ->whereNull('sale_id')
                         ->whereNull('purchase_id')
                         ->whereNull('subscription_invoice_id')
@@ -48,10 +48,10 @@ class TransactionsTable
                             DB::raw('0 as is_ref'),
                             DB::raw('NULL as category'),
                             DB::raw('NULL as ref_net'),
-                        ]);
-                }
+                        ])
+                    : static::applyQueryFilters($query, $livewire);
 
-                return static::applyQueryFilters($query, $livewire);
+                return static::applyWalletTabIfActive($result, $livewire);
             });
 
         return $table
@@ -434,10 +434,31 @@ class TransactionsTable
             ->with(['sale', 'purchase', 'subscriptionInvoice', 'retailInvoice']);
     }
 
+    /**
+     * Bungkus query aktual dengan filter & saldo tab dompet bila tab dompet aktif.
+     * Dipanggil TERAKHIR supaya window function saldo berada di query terluar.
+     */
+    protected static function applyWalletTabIfActive(Builder $query, \Livewire\Component $livewire): Builder
+    {
+        $activeTab = (string) ($livewire->activeTab ?? '');
+
+        if (! str_starts_with($activeTab, 'wallet_')) {
+            return $query;
+        }
+
+        $wallet = Wallet::find((int) str_replace('wallet_', '', $activeTab));
+
+        if (! $wallet) {
+            return $query;
+        }
+
+        return static::applyWalletTabQuery($query, $wallet);
+    }
+
     protected static function applyQueryFilters(Builder $query, \Livewire\Component $livewire): Builder
     {
         $filters = $livewire->tableFilters ?? [];
-        $showRefs = filled($filters['tampilkanReferensi']['isActive'] ?? null);
+        $showRefs = ($filters['tampilkanReferensi']['isActive'] ?? false) === true;
         $kategori = $filters['kategori']['value'] ?? null;
         $sumber = $filters['sumber']['value'] ?? null;
 

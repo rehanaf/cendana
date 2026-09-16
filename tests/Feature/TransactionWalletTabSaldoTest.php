@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\Transactions\Pages\ListTransactions;
 use App\Filament\Resources\Transactions\Tables\TransactionsTable;
 use App\Models\Coa;
 use App\Models\Role;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class TransactionWalletTabSaldoTest extends TestCase
@@ -233,5 +235,35 @@ class TransactionWalletTabSaldoTest extends TestCase
 
         $this->assertCount(1, $rows);
         $this->assertEquals(100000, $rows[$income->id]);
+    }
+
+    public function test_transaction_resource_wallet_tab_shows_saldo_in_total_column(): void
+    {
+        $wallet = Wallet::create(['name' => 'Tunai', 'balance' => 0]);
+
+        $incomeCoa = Coa::create([
+            'code' => '4-1000',
+            'name' => 'Pendapatan',
+            'type' => 'income',
+            'category' => 'pemasukan',
+            'is_active' => true,
+        ]);
+
+        Transaction::create([
+            'name' => 'Top Up',
+            'user_id' => $this->user->id,
+            'wallet_id' => $wallet->id,
+            'coa_id' => $incomeCoa->id,
+            'amount' => 100000,
+            'transaction_date' => '2026-04-01',
+        ]);
+
+        $this->actingAs($this->user);
+
+        Livewire::test(ListTransactions::class)
+            ->assertOk()
+            ->set('activeTab', 'wallet_'.$wallet->id)
+            ->assertOk()
+            ->assertSee('100.000');
     }
 }
