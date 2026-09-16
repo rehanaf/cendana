@@ -23,7 +23,9 @@ class Transaction extends Model
         'marketing_for_sale_id',
         'purchase_id',
         'subscription_invoice_id',
+        'marketing_for_subscription_invoice_id',
         'retail_invoice_id',
+        'marketing_for_retail_invoice_id',
     ];
 
     protected function casts(): array

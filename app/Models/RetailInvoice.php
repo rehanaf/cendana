@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsMarketingCost;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RetailInvoice extends Model
 {
+    use SyncsMarketingCost;
+
     protected $fillable = [
         'invoice_no',
         'retail_customer_id',
@@ -18,6 +21,7 @@ class RetailInvoice extends Model
         'coa_id',
         'wallet_id',
         'total',
+        'marketing_cost',
         'status',
         'notes',
         'created_by',
@@ -30,6 +34,7 @@ class RetailInvoice extends Model
             'date' => 'date',
             'due_date' => 'date',
             'total' => 'decimal:2',
+            'marketing_cost' => 'decimal:2',
         ];
     }
 
@@ -68,6 +73,26 @@ class RetailInvoice extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    protected function marketingTransactionColumn(): string
+    {
+        return 'marketing_for_retail_invoice_id';
+    }
+
+    protected function marketingWalletSettingKey(): string
+    {
+        return 'wallet_retail_id';
+    }
+
+    protected function marketingCostColumn(): string
+    {
+        return 'marketing_cost';
+    }
+
+    protected function marketingDescriptionType(): string
+    {
+        return 'retail';
     }
 
     public function getTotalPaidAttribute(): float

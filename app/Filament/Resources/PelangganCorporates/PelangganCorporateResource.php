@@ -40,7 +40,7 @@ class PelangganCorporateResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Pelanggan';
 
-    public static function getNavigationIcon(): string | BackedEnum | null
+    public static function getNavigationIcon(): string|BackedEnum|null
     {
         return Heroicon::OutlinedBuildingOffice;
     }
@@ -107,6 +107,13 @@ class PelangganCorporateResource extends Resource
                     ->maxValue(28)
                     ->default(1)
                     ->visible(fn (Get $get): bool => (bool) $get('is_subscription')),
+                TextInput::make('marketing_cost')
+                    ->label('Biaya Marketing Bulanan')
+                    ->helperText('Biaya marketing yang dibebankan tiap invoice langganan pelanggan ini')
+                    ->numeric()
+                    ->default(0)
+                    ->prefix('Rp')
+                    ->visible(fn (Get $get): bool => (bool) $get('is_subscription')),
                 Textarea::make('notes')
                     ->label('Keterangan (untuk Invoice)')
                     ->helperText('Keterangan default yang otomatis terisi di invoice langganan')
@@ -153,6 +160,12 @@ class PelangganCorporateResource extends Resource
                 TextColumn::make('due_day')
                     ->label('Jatuh Tempo')
                     ->sortable(),
+                TextColumn::make('marketing_cost')
+                    ->label('Biaya Marketing')
+                    ->money('IDR', decimalPlaces: 0)
+                    ->placeholder('-')
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('notes')
                     ->label('Keterangan')
                     ->limit(30)

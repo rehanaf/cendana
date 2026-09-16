@@ -15,6 +15,7 @@ class PelangganRetail extends Model
         'email',
         'subscription_start_date',
         'internet_package_id',
+        'marketing_cost',
         'block_location',
         'full_address',
         'wa',
@@ -32,6 +33,7 @@ class PelangganRetail extends Model
     {
         return [
             'subscription_start_date' => 'date',
+            'marketing_cost' => 'decimal:2',
             'ktp_birth_date' => 'date',
             'is_active' => 'boolean',
         ];

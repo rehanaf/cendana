@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsMarketingCost;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SubscriptionInvoice extends Model
 {
+    use SyncsMarketingCost;
+
     protected $fillable = [
         'invoice_no',
         'customer_id',
@@ -17,6 +20,7 @@ class SubscriptionInvoice extends Model
         'coa_id',
         'wallet_id',
         'total',
+        'marketing_cost',
         'status',
         'notes',
         'created_by',
@@ -29,6 +33,7 @@ class SubscriptionInvoice extends Model
             'date' => 'date',
             'due_date' => 'date',
             'total' => 'decimal:2',
+            'marketing_cost' => 'decimal:2',
         ];
     }
 
@@ -47,6 +52,26 @@ class SubscriptionInvoice extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(PelangganCorporate::class, 'customer_id');
+    }
+
+    protected function marketingTransactionColumn(): string
+    {
+        return 'marketing_for_subscription_invoice_id';
+    }
+
+    protected function marketingWalletSettingKey(): string
+    {
+        return 'wallet_langganan_id';
+    }
+
+    protected function marketingCostColumn(): string
+    {
+        return 'marketing_cost';
+    }
+
+    protected function marketingDescriptionType(): string
+    {
+        return 'langganan';
     }
 
     public function coa(): BelongsTo

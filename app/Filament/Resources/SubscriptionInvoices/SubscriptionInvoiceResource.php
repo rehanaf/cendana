@@ -99,6 +99,11 @@ class SubscriptionInvoiceResource extends Resource
                     ->numeric()
                     ->required()
                     ->prefix('Rp'),
+                TextInput::make('marketing_cost')
+                    ->label('Biaya Marketing')
+                    ->helperText('Kosongkan untuk memakai biaya marketing pelanggan; bisa diubah manual per invoice')
+                    ->numeric()
+                    ->prefix('Rp'),
                 Toggle::make('pay_now')
                     ->label('Langsung Lunas')
                     ->helperText('Buat transaksi pemasukan penuh saat menyimpan')

@@ -18,6 +18,7 @@ class PelangganCorporate extends Model
         'contract_start',
         'is_subscription',
         'monthly_fee',
+        'marketing_cost',
         'due_day',
         'notes',
         'is_active',
@@ -29,6 +30,7 @@ class PelangganCorporate extends Model
             'contract_start' => 'date',
             'is_subscription' => 'boolean',
             'monthly_fee' => 'decimal:2',
+            'marketing_cost' => 'decimal:2',
             'is_active' => 'boolean',
         ];
     }

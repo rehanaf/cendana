@@ -36,7 +36,7 @@ class PelangganRetailResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'Pelanggan';
 
-    public static function getNavigationIcon(): string | BackedEnum | null
+    public static function getNavigationIcon(): string|BackedEnum|null
     {
         return Heroicon::OutlinedUserGroup;
     }
@@ -82,6 +82,12 @@ class PelangganRetailResource extends Resource
                     ->relationship('paketInternet', 'name')
                     ->searchable()
                     ->preload(),
+                TextInput::make('marketing_cost')
+                    ->label('Biaya Marketing Bulanan')
+                    ->helperText('Biaya marketing yang dibebankan tiap invoice retail pelanggan ini')
+                    ->numeric()
+                    ->default(0)
+                    ->prefix('Rp'),
                 TextInput::make('block_location')
                     ->label('Lokasi/Blok')
                     ->maxLength(255),
@@ -145,6 +151,12 @@ class PelangganRetailResource extends Resource
                 TextColumn::make('block_location')
                     ->label('Lokasi/Blok')
                     ->searchable(),
+                TextColumn::make('marketing_cost')
+                    ->label('Biaya Marketing')
+                    ->money('IDR', decimalPlaces: 0)
+                    ->placeholder('-')
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('wa')
                     ->label('WhatsApp')
                     ->searchable(),
