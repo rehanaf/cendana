@@ -66,7 +66,7 @@ class SaleResource extends Resource
         return 'Penjualan';
     }
 
-    protected static function unifiedQuery(): Builder
+    public static function unifiedQuery(): Builder
     {
         $offset = 1000000000;
 

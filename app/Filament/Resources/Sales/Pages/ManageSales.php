@@ -8,10 +8,42 @@ use App\Models\Transaction;
 use App\Support\PaymentDescription;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ManageRecords;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class ManageSales extends ManageRecords
 {
     protected static string $resource = SaleResource::class;
+
+    /**
+     * Tabel Penjualan memakai query gabungan (unified) dari `sales` + `retail_invoices`
+     * melalui subquery alias `penjualan`, sehingga primary key kualifikasi model (sales.id)
+     * tidak valid di query itu. Filament me-resolve record aksi baris via find(id),
+     * maka overriding ini memastikan resolusi memakai kolom `id` di query gabungan.
+     *
+     * @return Model|array<string, mixed>|null
+     */
+    protected function resolveTableRecord(?string $key): Model|array|null
+    {
+        if ($key === null) {
+            return null;
+        }
+
+        return SaleResource::unifiedQuery()->where('id', (int) $key)->first();
+    }
+
+    public function getSelectedTableRecordsQuery(bool $shouldFetchSelectedRecords = true, ?int $chunkSize = null): Builder
+    {
+        $query = SaleResource::unifiedQuery();
+
+        if ($this->isTrackingDeselectedTableRecords) {
+            $query->whereNotIn('id', array_map('intval', $this->deselectedTableRecords));
+        } else {
+            $query->whereIn('id', array_map('intval', $this->selectedTableRecords));
+        }
+
+        return $query;
+    }
 
     protected function getHeaderActions(): array
     {
