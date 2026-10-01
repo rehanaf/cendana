@@ -24,8 +24,11 @@ trait SyncsMarketingCost
 {
     protected static function bootSyncsMarketingCost(): void
     {
-        static::saved(function (Model $invoice) {
+        static::saving(function (Model $invoice): void {
             $invoice->snapshotMarketingCost();
+        });
+
+        static::saved(function (Model $invoice) {
             $invoice->syncMarketingCostTransaction();
         });
 
@@ -45,15 +48,22 @@ trait SyncsMarketingCost
 
     abstract protected function marketingCostColumn(): string;
 
+    /**
+     * Isi biaya marketing sebelum invoice disimpan.
+     *
+     * Kolom marketing_cost NOT NULL, jadi nilai kosong dari form harus dinormalkan
+     * lebih dulu (0) agar tidak gagal saat insert. Kalau kosong, diambil dari
+     * data pelanggan sebagai snapshot.
+     */
     protected function snapshotMarketingCost(): void
     {
-        if (filled($this->getAttribute($this->marketingCostColumn()))) {
+        $column = $this->marketingCostColumn();
+
+        if (filled($this->getAttribute($column))) {
             return;
         }
 
-        $value = (float) ($this->customer?->marketing_cost ?? 0);
-        $this->setAttribute($this->marketingCostColumn(), $value);
-        static::query()->whereKey($this->getKey())->update([$this->marketingCostColumn() => $value]);
+        $this->setAttribute($column, (float) ($this->customer?->marketing_cost ?? 0));
     }
 
     public function syncMarketingCostTransaction(): void

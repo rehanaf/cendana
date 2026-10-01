@@ -7,6 +7,7 @@ use App\Models\PaketInternet;
 use App\Models\PelangganCorporate;
 use App\Models\PelangganRetail;
 use App\Models\RetailInvoice;
+use App\Models\Sale;
 use App\Models\Setting;
 use App\Models\SubscriptionInvoice;
 use App\Models\Transaction;
@@ -301,5 +302,87 @@ class SubscriptionMarketingCostTest extends TestCase
 
         $this->assertNotNull(Transaction::query()->where('marketing_for_retail_invoice_id', $rtl->id)->first());
         $this->assertEquals(75000, (float) Transaction::query()->where('marketing_for_retail_invoice_id', $rtl->id)->value('amount'));
+    }
+
+    public function test_null_marketing_cost_on_create_is_normalized_to_customer_default(): void
+    {
+        $invoice = SubscriptionInvoice::create([
+            'invoice_no' => 'SUB-NULL-'.random_int(1000, 9999),
+            'customer_id' => $this->corporateCustomer->id,
+            'period' => now()->startOfMonth(),
+            'date' => now(),
+            'due_date' => now()->addDays(30),
+            'coa_id' => $this->incomeCoa->id,
+            'wallet_id' => $this->wallet->id,
+            'total' => 500000,
+            'marketing_cost' => null,
+            'status' => 'berjalan',
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->assertEquals(150000, (float) $invoice->fresh()->marketing_cost);
+        $this->assertEquals(150000, (float) Transaction::query()->where('marketing_for_subscription_invoice_id', $invoice->id)->value('amount'));
+    }
+
+    public function test_null_marketing_cost_on_create_without_customer_default_is_zero(): void
+    {
+        $this->corporateCustomer->update(['marketing_cost' => 0]);
+
+        $invoice = SubscriptionInvoice::create([
+            'invoice_no' => 'SUB-NULL2-'.random_int(1000, 9999),
+            'customer_id' => $this->corporateCustomer->id,
+            'period' => now()->startOfMonth(),
+            'date' => now(),
+            'due_date' => now()->addDays(30),
+            'coa_id' => $this->incomeCoa->id,
+            'wallet_id' => $this->wallet->id,
+            'total' => 500000,
+            'marketing_cost' => null,
+            'status' => 'berjalan',
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->assertEquals(0, (float) $invoice->fresh()->marketing_cost);
+        $this->assertNull(Transaction::query()->where('marketing_for_subscription_invoice_id', $invoice->id)->first());
+    }
+
+    public function test_null_marketing_cost_on_retail_invoice_is_normalized(): void
+    {
+        $invoice = RetailInvoice::create([
+            'invoice_no' => 'RTL-NULL-'.random_int(1000, 9999),
+            'retail_customer_id' => $this->retailCustomer->id,
+            'internet_package_id' => $this->retailCustomer->internet_package_id,
+            'period' => now()->startOfMonth(),
+            'date' => now(),
+            'due_date' => now()->addDays(30),
+            'coa_id' => $this->incomeCoa->id,
+            'wallet_id' => $this->wallet->id,
+            'total' => 200000,
+            'marketing_cost' => null,
+            'status' => 'berjalan',
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->assertEquals(50000, (float) $invoice->fresh()->marketing_cost);
+        $this->assertEquals(50000, (float) Transaction::query()->where('marketing_for_retail_invoice_id', $invoice->id)->value('amount'));
+    }
+
+    public function test_sale_with_null_marketing_cost_is_normalized_to_zero(): void
+    {
+        $sale = Sale::create([
+            'invoice_no' => 'INV-NULL-'.random_int(1000, 9999),
+            'customer_id' => $this->corporateCustomer->id,
+            'date' => now(),
+            'due_date' => now()->addDays(30),
+            'coa_id' => $this->incomeCoa->id,
+            'wallet_id' => $this->wallet->id,
+            'total' => 750000,
+            'marketing_cost' => null,
+            'status' => 'berjalan',
+            'created_by' => $this->user->id,
+        ]);
+
+        $this->assertEquals(0, (float) $sale->fresh()->marketing_cost);
+        $this->assertNull(Transaction::query()->where('marketing_for_sale_id', $sale->id)->first());
     }
 }

@@ -12,6 +12,8 @@ use Filament\Actions\Action;
 use Filament\Actions\Concerns\InteractsWithRecord;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
 
 class CetakInvoiceAction extends Action
@@ -84,6 +86,14 @@ class CetakInvoiceAction extends Action
                         ->all())
                     ->default(fn (): ?int => (int) Setting::get($this->templateSettingKey() ?? '', 0) ?: null)
                     ->required(),
+                TextInput::make('total')
+                    ->label('Total Tagihan')
+                    ->helperText('Bisa diubah sebagian, misalnya tagihan Rp 1.000.000 dipecah menjadi Rp 400.000 di invoice ini.')
+                    ->numeric()
+                    ->prefix('Rp')
+                    ->minValue(0)
+                    ->default(fn (Model $record): mixed => $record->total ?? null)
+                    ->visible(fn (Model $record): bool => \Schema::hasColumn($record->getTable(), 'total')),
                 Textarea::make('keterangan')
                     ->label('Keterangan')
                     ->helperText('Keterangan/item yang tampil di invoice. Bisa diedit sebelum cetak.')
@@ -107,9 +117,38 @@ class CetakInvoiceAction extends Action
                     return;
                 }
 
+                $changes = [];
+
                 if ($record->exists && \Schema::hasColumn($record->getTable(), 'notes')) {
                     $record->notes = $data['keterangan'] ?? null;
+                }
+
+                if (\Schema::hasColumn($record->getTable(), 'total') && filled($data['total'] ?? null)) {
+                    $total = round((float) $data['total'], 2);
+                    $paid = (float) ($record->total_paid ?? 0);
+
+                    if ($total < $paid) {
+                        Notification::make()
+                            ->title('Total tidak boleh lebih kecil dari yang sudah dibayar')
+                            ->body('Sudah dibayar Rp '.number_format($paid, 0, ',', '.').'.')
+                            ->danger()
+                            ->send();
+
+                        return null;
+                    }
+
+                    if ($total !== round((float) $record->total, 2)) {
+                        $record->total = $total;
+                        $changes[] = 'total';
+                    }
+                }
+
+                if ($record->exists && $record->isDirty()) {
                     $record->save();
+                }
+
+                if ($changes !== [] && method_exists($record, 'refreshStatus')) {
+                    $record->refreshStatus();
                 }
 
                 return redirect()->route('invoice.preview', [

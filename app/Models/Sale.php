@@ -35,6 +35,12 @@ class Sale extends Model
 
     protected static function booted(): void
     {
+        static::saving(function (Sale $sale): void {
+            if (blank($sale->marketing_cost)) {
+                $sale->marketing_cost = 0;
+            }
+        });
+
         static::saved(function (Sale $sale) {
             $sale->syncMarketingCostTransaction();
         });
