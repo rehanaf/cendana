@@ -96,7 +96,7 @@ class CetakInvoiceAction extends Action
                     ->visible(fn (Model $record): bool => \Schema::hasColumn($record->getTable(), 'total')),
                 Textarea::make('keterangan')
                     ->label('Keterangan')
-                    ->helperText('Keterangan/item yang tampil di invoice. Bisa diedit sebelum cetak.')
+                    ->helperText('Keterangan/item yang tampil di invoice. Bisa diedit sebelum cetak. Tekan Enter untuk membuat baris tabel baru.')
                     ->rows(3)
                     ->default(fn (Model $record): ?string => $record->notes ?? null),
             ])

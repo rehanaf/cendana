@@ -192,13 +192,23 @@ td.imgcell{position:relative;height:100%;}
       if ($fallbackDesc === '') {
           $fallbackDesc = 'Penjualan (No. ' . ($invoice->invoice_no ?? '') . ')';
       }
+      $descLines = preg_split('/\r\n|\r|\n/', $fallbackDesc);
+      $descLines = array_values(array_filter(array_map('trim', $descLines), static fn ($line) => $line !== ''));
     @endphp
+    @foreach($descLines as $descLineIndex => $descLine)
     <tr class="r50 vc">
-      <td class="ct" colspan="2">{{ $fallbackDesc }}</td>
+      <td class="ct" colspan="2">{{ $descLine }}</td>
+      @if($descLineIndex === 0)
       <td class="ct ac">1</td>
       <td class="ct ar">{{ $total }}</td>
       <td class="ct ar">{{ $total }}</td>
+      @else
+      <td class="ct ac"></td>
+      <td class="ct ar"></td>
+      <td class="ct ar"></td>
+      @endif
     </tr>
+    @endforeach
   @endforelse
     <tr class="r42 vc"><td class="ct"></td><td></td><td></td><td></td><td></td></tr>
     <tr class="r42 vc bt">
